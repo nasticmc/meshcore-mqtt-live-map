@@ -60,6 +60,9 @@ Runtime tuning:
 - `HEAT_TTL_SECONDS`
 - `MESSAGE_ORIGIN_TTL_SECONDS`
 - `DEBUG_PAYLOAD` (verbose decoding logs)
+- `LOS_ELEVATION_URL` (elevation API for LOS tool)
+- `LOS_SAMPLE_MIN` / `LOS_SAMPLE_MAX` / `LOS_SAMPLE_STEP_METERS`
+- `ELEVATION_CACHE_TTL` (seconds)
 
 ## Common Commands
 - Rebuild/restart: `docker compose up -d --build`

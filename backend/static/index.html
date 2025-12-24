@@ -71,6 +71,10 @@
       padding: 4px 8px;
       cursor: pointer;
     }
+    .map-toggle.active {
+      background: rgba(34,197,94,.35);
+      border-color: rgba(34,197,94,.6);
+    }
     .leaflet-popup-content { max-width: 260px; overflow-wrap: anywhere; word-break: break-word; }
     .popup-title { display: block; font-weight: 600; }
     .popup-id { display: block; opacity: 0.85; }
@@ -101,9 +105,11 @@
     <div class="small">Markers update in real time. Trails show last ~50 points.</div>
     <div class="small">{{SITE_FEED_NOTE}}</div>
     <div class="small" id="stats"></div>
+    <div class="small" id="los-status"></div>
     <button class="legend-toggle" id="legend-toggle" type="button">Hide legend</button>
     <button class="map-toggle" id="map-toggle" type="button">Dark map</button>
     <button class="map-toggle" id="topo-toggle" type="button">Topo map</button>
+    <button class="map-toggle" id="los-toggle" type="button">LOS tool</button>
     <div class="legend">
       <div class="legend-item"><span class="legend-line legend-trace"></span> Trace/path</div>
       <div class="legend-item"><span class="legend-line legend-message"></span> Message</div>
@@ -158,6 +164,11 @@
     }).addTo(map);
     const heatPoints = [];
     const HEAT_TTL_MS = 10 * 60 * 1000;
+    const losLayer = L.layerGroup().addTo(map);
+    let losActive = false;
+    let losPoints = [];
+    let losLine = null;
+    let losSuggestion = null;
 
     function resolveRole(d) {
       const role = (d.role || '').toLowerCase();
@@ -182,6 +193,35 @@
 
     function setStats() {
       document.getElementById('stats').textContent = `${markers.size} active devices • ${routeLines.size} routes`;
+    }
+
+    function setLosStatus(text) {
+      const el = document.getElementById('los-status');
+      if (el) {
+        el.textContent = text || '';
+      }
+    }
+
+    function clearLos() {
+      losPoints = [];
+      losLine = null;
+      losSuggestion = null;
+      losLayer.clearLayers();
+      setLosStatus('');
+    }
+
+    function setLosActive(active) {
+      losActive = active;
+      const btn = document.getElementById('los-toggle');
+      if (btn) {
+        btn.classList.toggle('active', active);
+        btn.textContent = active ? 'LOS: click 2 points' : 'LOS tool';
+      }
+      if (!active) {
+        clearLos();
+      } else {
+        setLosStatus('LOS: select first point');
+      }
     }
 
     function formatLastContact(tsSeconds) {
@@ -233,6 +273,19 @@
           autoPan: true,
           keepInView: true,
           autoPanPadding: [18, 18]
+        });
+        m.on('click', (ev) => {
+          const original = ev.originalEvent;
+          if (original && original.shiftKey) {
+            if (!losActive) {
+              setLosActive(true);
+            }
+            handleLosPoint(m.getLatLng());
+            m.closePopup();
+            original.preventDefault();
+            original.stopPropagation();
+            L.DomEvent.stop(ev);
+          }
         });
         markers.set(id, m);
       } else {
@@ -443,6 +496,99 @@
       };
     }
 
+    async function runLosCheck() {
+      if (losPoints.length < 2) return;
+      const [a, b] = losPoints;
+      setLosStatus('LOS: calculating...');
+      const params = new URLSearchParams({
+        lat1: a.lat.toFixed(6),
+        lon1: a.lng.toFixed(6),
+        lat2: b.lat.toFixed(6),
+        lon2: b.lng.toFixed(6)
+      });
+      try {
+        const res = await fetch(`/los?${params.toString()}`);
+        const data = await res.json();
+        if (!data.ok) {
+          setLosStatus(`LOS: ${data.error || 'failed'}`);
+          if (losLine) {
+            losLine.setStyle({ color: '#9ca3af', weight: 4, opacity: 0.8, dashArray: '6 10' });
+          }
+          return;
+        }
+        const blocked = data.blocked;
+        let distance = '';
+        if (data.distance_m != null) {
+          const meters = Number(data.distance_m);
+          if (!Number.isNaN(meters)) {
+            distance = meters >= 1000
+              ? `${(meters / 1000).toFixed(2)} km`
+              : `${Math.round(meters)} m`;
+          }
+        }
+        const obstruction = blocked ? `blocked (+${data.max_obstruction_m}m)` : 'clear';
+        let statusText = `LOS: ${distance} • ${obstruction}`;
+        if (losSuggestion) {
+          losLayer.removeLayer(losSuggestion);
+          losSuggestion = null;
+        }
+        if (data.suggested) {
+          const s = data.suggested;
+          const label = s.clear ? 'Relay (clear)' : 'Relay (blocked)';
+          const color = s.clear ? '#22c55e' : '#f59e0b';
+          losSuggestion = L.circleMarker([s.lat, s.lon], {
+            radius: 6,
+            color,
+            fillColor: color,
+            fillOpacity: 0.9,
+            weight: 2
+          }).addTo(losLayer);
+          losSuggestion.bindTooltip(`${label}<br/>${s.lat}, ${s.lon}`, { direction: 'top' });
+          statusText += s.clear ? ' • relay suggested' : ' • relay maybe';
+        }
+        setLosStatus(statusText);
+        if (losLine) {
+          losLine.setStyle({
+            color: blocked ? '#ef4444' : '#22c55e',
+            weight: 5,
+            opacity: 0.9,
+            dashArray: blocked ? '4 10' : null
+          });
+        }
+      } catch (err) {
+        console.warn('los failed', err);
+        setLosStatus('LOS: error');
+      }
+    }
+
+    function handleLosPoint(latlng) {
+      if (losPoints.length >= 2) {
+        clearLos();
+      }
+      losPoints.push(latlng);
+      L.circleMarker(latlng, {
+        radius: 5,
+        color: '#fbbf24',
+        fillColor: '#fbbf24',
+        fillOpacity: 0.9,
+        weight: 2
+      }).addTo(losLayer);
+
+      if (losPoints.length === 1) {
+        setLosStatus('LOS: select second point');
+        return;
+      }
+      if (losPoints.length === 2) {
+        losLine = L.polyline([losPoints[0], losPoints[1]], {
+          color: '#9ca3af',
+          weight: 4,
+          opacity: 0.8,
+          dashArray: '6 10'
+        }).addTo(losLayer);
+        runLosCheck();
+      }
+    }
+
     initialSnapshot();
     connectWS();
     setStats();
@@ -497,6 +643,18 @@
       });
     }
     setBaseLayer(baseLayer);
+
+    const losToggle = document.getElementById('los-toggle');
+    if (losToggle) {
+      losToggle.addEventListener('click', () => {
+        setLosActive(!losActive);
+      });
+    }
+
+    map.on('click', (ev) => {
+      if (!losActive) return;
+      handleLosPoint(ev.latlng);
+    });
   </script>
 </body>
 </html>
