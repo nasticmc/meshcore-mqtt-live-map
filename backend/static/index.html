@@ -1,0 +1,498 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>{{SITE_TITLE}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{SITE_DESCRIPTION}}" />
+  <link rel="icon" href="{{SITE_ICON}}" type="image/png" />
+  <meta property="og:title" content="{{SITE_TITLE}}" />
+  <meta property="og:description" content="{{SITE_DESCRIPTION}}" />
+  <meta property="og:type" content="website" />
+  {{OG_IMAGE_TAG}}
+  <meta property="og:url" content="{{SITE_URL}}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{SITE_TITLE}}" />
+  <meta name="twitter:description" content="{{SITE_DESCRIPTION}}" />
+  {{TWITTER_IMAGE_TAG}}
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; }
+    .hud {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,.65);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      z-index: 999;
+      max-width: 340px;
+    }
+    .hud-header { display: flex; align-items: center; gap: 8px; }
+    .hud-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: rgba(255,255,255,.08); padding: 2px; }
+    .small { opacity: .85; font-size: 12px; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background: rgba(255,255,255,.12); margin-right:6px; }
+    .legend { margin-top: 8px; display: grid; gap: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: 0.9; }
+    .legend-line { width: 30px; height: 0; border-top: 4px solid; display: inline-block; }
+    .legend-trace { border-color: #ff7a1a; border-top-style: dashed; }
+    .legend-message { border-color: #2b8cff; border-top-style: solid; }
+    .legend-advert { border-color: #2ecc71; border-top-style: dotted; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid; display: inline-block; }
+    .legend-repeater { border-color: #1d4ed8; background: #2b8cff; }
+    .legend-companion { border-color: #6b21a8; background: #a855f7; }
+    .legend-room { border-color: #b45309; background: #f59e0b; }
+    .legend-unknown { border-color: #4b5563; background: #d1d5db; }
+    .legend-heat { width: 30px; height: 10px; border-radius: 6px; background: linear-gradient(90deg, #fbbf24, #f97316, #ef4444, #b91c1c); border: 1px solid rgba(255,255,255,.25); display: inline-block; }
+    .legend-toggle {
+      margin-top: 6px;
+      font-size: 12px;
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .legend-collapsed .legend { display: none; }
+    .map-toggle {
+      margin-top: 6px;
+      font-size: 12px;
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .leaflet-popup-content { max-width: 260px; overflow-wrap: anywhere; word-break: break-word; }
+    .popup-title { display: block; font-weight: 600; }
+    .popup-id { display: block; opacity: 0.85; }
+    .popup-topic { display: inline-block; overflow-wrap: anywhere; word-break: break-word; }
+    .trail-animated {
+      stroke-dasharray: 6 10;
+      animation: trail-dash 6s linear infinite;
+    }
+    @keyframes trail-dash {
+      to { stroke-dashoffset: -120; }
+    }
+    .route-animated {
+      stroke-dasharray: 12 18;
+      animation: route-dash 8s linear infinite;
+      stroke-linecap: butt;
+      stroke-linejoin: miter;
+    }
+    @keyframes route-dash {
+      to { stroke-dashoffset: -200; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="hud-header">
+      <img class="hud-logo" src="/static/logo.png" alt="Greater Boston Mesh" />
+      <div><span class="pill">Live</span> {{SITE_TITLE}}</div>
+    </div>
+    <div class="small">Markers update in real time. Trails show last ~50 points.</div>
+    <div class="small">{{SITE_FEED_NOTE}}</div>
+    <div class="small" id="stats"></div>
+    <button class="map-toggle" id="map-toggle" type="button">Dark map</button>
+    <button class="map-toggle" id="topo-toggle" type="button">Topo map</button>
+    <button class="legend-toggle" id="legend-toggle" type="button">Hide legend</button>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-line legend-trace"></span> Trace/path</div>
+      <div class="legend-item"><span class="legend-line legend-message"></span> Message</div>
+      <div class="legend-item"><span class="legend-line legend-advert"></span> Advert</div>
+      <div class="legend-item"><span class="legend-heat"></span> Heat (last 10 min)</div>
+      <div class="legend-item"><span class="legend-dot legend-repeater"></span> Repeater</div>
+      <div class="legend-item"><span class="legend-dot legend-companion"></span> Companion</div>
+      <div class="legend-item"><span class="legend-dot legend-room"></span> Room server</div>
+      <div class="legend-item"><span class="legend-dot legend-unknown"></span> Unknown</div>
+    </div>
+  </div>
+  <div id="map"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+  <script>
+    const map = L.map('map', { zoomControl: false }).setView([42.3601, -71.1500], 10); // default Boston-ish
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    const lightTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    });
+    const topoTiles = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      maxZoom: 17,
+      attribution: '&copy; OpenStreetMap contributors &copy; OpenTopoMap'
+    });
+    let baseLayer = 'light';
+    const storedLayer = localStorage.getItem('meshmapBaseLayer');
+    if (storedLayer === 'dark' || storedLayer === 'topo' || storedLayer === 'light') {
+      baseLayer = storedLayer;
+    }
+
+    const markers = new Map();   // device_id -> Leaflet marker
+    const polylines = new Map(); // device_id -> Leaflet polyline
+    const routeLines = new Map(); // route_id -> { line, timeout }
+    const routeLayer = L.layerGroup().addTo(map);
+    const heatLayer = L.heatLayer([], {
+      radius: 28,
+      blur: 22,
+      minOpacity: 0.2,
+      maxZoom: 16,
+      gradient: { 0.2: '#fbbf24', 0.5: '#f97316', 0.8: '#ef4444', 1.0: '#b91c1c' }
+    }).addTo(map);
+    const heatPoints = [];
+    const HEAT_TTL_MS = 10 * 60 * 1000;
+
+    function resolveRole(d) {
+      const role = (d.role || '').toLowerCase();
+      if (role.includes('repeater')) return 'repeater';
+      if (role.includes('companion')) return 'companion';
+      if (role.includes('room')) return 'room';
+      return 'unknown';
+    }
+
+    function markerStyleForRole(role) {
+      if (role === 'repeater') {
+        return { color: '#1d4ed8', fillColor: '#2b8cff', fillOpacity: 0.95, radius: 8, weight: 2 };
+      }
+      if (role === 'companion') {
+        return { color: '#6b21a8', fillColor: '#a855f7', fillOpacity: 0.95, radius: 8, weight: 2 };
+      }
+      if (role === 'room') {
+        return { color: '#b45309', fillColor: '#f59e0b', fillOpacity: 0.95, radius: 8, weight: 2 };
+      }
+      return { color: '#4b5563', fillColor: '#d1d5db', fillOpacity: 0.95, radius: 8, weight: 2 };
+    }
+
+    function setStats() {
+      document.getElementById('stats').textContent = `${markers.size} active devices • ${routeLines.size} routes`;
+    }
+
+    function formatLastContact(tsSeconds) {
+      if (!tsSeconds) return 'unknown';
+      const dt = new Date(tsSeconds * 1000);
+      return dt.toLocaleString(undefined, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    }
+
+    function makePopup(d) {
+      const lastContact = formatLastContact(d.ts);
+      const deviceLabel = d.device_id ? `${d.device_id.slice(0, 8)}…` : '';
+      const title = d.name
+        ? `<span class="popup-title">${d.name}</span><span class="popup-id">${deviceLabel}</span>`
+        : `<span class="popup-title popup-id">${deviceLabel}</span>`;
+      const role = resolveRole(d);
+      const roleLabel = role === 'unknown' ? '' : role.charAt(0).toUpperCase() + role.slice(1);
+      return `
+        ${title}
+        <span class="small">
+          ${roleLabel ? `Role: ${roleLabel}<br/>` : ``}
+          Location: ${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}<br/>
+          Last Contact: ${lastContact}<br/>
+          ${d.rssi != null ? `RSSI: ${d.rssi}<br/>` : ``}
+          ${d.snr != null ? `SNR: ${d.snr}<br/>` : ``}
+        </span>
+      `;
+    }
+
+    function upsertDevice(d, trail) {
+      const id = d.device_id;
+      const latlng = [d.lat, d.lon];
+      const role = resolveRole(d);
+      const style = markerStyleForRole(role);
+
+      // marker
+      if (!markers.has(id)) {
+        const m = L.circleMarker(latlng, style).addTo(map);
+        m.bindPopup(makePopup(d), {
+          maxWidth: 260,
+          maxHeight: 320,
+          autoPan: true,
+          keepInView: true,
+          autoPanPadding: [18, 18]
+        });
+        markers.set(id, m);
+      } else {
+        const m = markers.get(id);
+        m.setLatLng(latlng);
+        m.setPopupContent(makePopup(d));
+        if (m.setStyle) m.setStyle(style);
+      }
+
+      // trail polyline (skip companions)
+      if (role !== 'companion' && Array.isArray(trail) && trail.length >= 2) {
+        const points = trail.map(p => [p[0], p[1]]);
+        if (!polylines.has(id)) {
+          const pl = L.polyline(points, {
+            color: '#38bdf8',
+            weight: 3,
+            opacity: 0.85,
+            className: 'trail-animated'
+          }).addTo(map);
+          polylines.set(id, pl);
+        } else {
+          const pl = polylines.get(id);
+          pl.setLatLngs(points);
+          if (pl.setStyle) {
+            pl.setStyle({ color: '#38bdf8', weight: 3, opacity: 0.85 });
+          }
+        }
+      } else if (polylines.has(id) && role === 'companion') {
+        map.removeLayer(polylines.get(id));
+        polylines.delete(id);
+      }
+
+      setStats();
+    }
+
+    function removeDevices(ids) {
+      ids.forEach(id => {
+        if (markers.has(id)) {
+          map.removeLayer(markers.get(id));
+          markers.delete(id);
+        }
+        if (polylines.has(id)) {
+          map.removeLayer(polylines.get(id));
+          polylines.delete(id);
+        }
+      });
+      setStats();
+    }
+
+    function removeRoutes(ids) {
+      ids.forEach(id => {
+        const entry = routeLines.get(id);
+        if (!entry) return;
+        if (entry.timeout) clearTimeout(entry.timeout);
+        routeLayer.removeLayer(entry.line);
+        routeLines.delete(id);
+      });
+      setStats();
+    }
+
+    function refreshHeatLayer() {
+      const now = Date.now();
+      const cutoff = now - HEAT_TTL_MS;
+      const filtered = heatPoints.filter(p => p.ts >= cutoff);
+      heatPoints.length = 0;
+      heatPoints.push(...filtered);
+      heatLayer.setLatLngs(heatPoints.map(p => [p.lat, p.lon, p.weight]));
+    }
+
+    function addHeatPoints(points, tsSeconds, payloadType) {
+      if (!Array.isArray(points) || points.length < 1) return;
+      if (Number(payloadType) === 4) return; // skip adverts for route-based heat
+      const ts = (tsSeconds ? tsSeconds * 1000 : Date.now());
+      points.forEach(p => {
+        heatPoints.push({ lat: p[0], lon: p[1], ts, weight: 0.7 });
+      });
+      refreshHeatLayer();
+    }
+
+    function seedHeat(items) {
+      if (!Array.isArray(items)) return;
+      heatPoints.length = 0;
+      items.forEach(item => {
+        if (!Array.isArray(item) || item.length < 3) return;
+        heatPoints.push({
+          lat: item[0],
+          lon: item[1],
+          ts: item[2] * 1000,
+          weight: item[3] != null ? item[3] : 0.7
+        });
+      });
+      refreshHeatLayer();
+    }
+
+    function upsertRoute(r, skipHeat = false) {
+      if (!r || !Array.isArray(r.points) || r.points.length < 2) return;
+      const id = r.id || `route-${Date.now()}-${Math.random()}`;
+      const points = r.points.map(p => [p[0], p[1]]);
+      const routeMode = r.route_mode || 'path';
+      const isFanout = routeMode === 'fanout';
+      const payloadType = Number(r.payload_type);
+      const isAdvert = payloadType === 4;
+      const style = {
+        color: isAdvert ? '#2ecc71' : (isFanout ? '#2b8cff' : '#ff7a1a'),
+        weight: isFanout ? 4 : 5,
+        opacity: isFanout ? 0.85 : 0.9,
+        lineCap: 'butt',
+        lineJoin: 'miter'
+      };
+      if (!isFanout) {
+        style.dashArray = isAdvert ? '4 10' : '8 14';
+      }
+
+      let entry = routeLines.get(id);
+      if (!entry) {
+        const line = L.polyline(points, style).addTo(routeLayer);
+        entry = { line, timeout: null };
+        routeLines.set(id, entry);
+      } else {
+        entry.line.setLatLngs(points);
+        entry.line.setStyle(style);
+      }
+      const lineEl = entry.line.getElement();
+      if (lineEl) {
+        lineEl.classList.add('route-animated');
+      }
+
+      if (entry.timeout) clearTimeout(entry.timeout);
+      if (r.expires_at) {
+        const ms = Math.max(1000, (r.expires_at * 1000) - Date.now());
+        entry.timeout = setTimeout(() => removeRoutes([id]), ms);
+      }
+
+      if (!skipHeat) {
+        addHeatPoints(points, r.ts, r.payload_type);
+      }
+      setStats();
+    }
+
+    async function initialSnapshot() {
+      try {
+        const res = await fetch('/snapshot');
+        const snap = await res.json();
+        if (snap.devices) {
+          for (const [id, d] of Object.entries(snap.devices)) {
+            const trail = snap.trails ? snap.trails[id] : null;
+            upsertDevice(d, trail);
+          }
+        }
+        if (Array.isArray(snap.heat)) {
+          seedHeat(snap.heat);
+        }
+        if (Array.isArray(snap.routes)) {
+          snap.routes.forEach(r => upsertRoute(r, true));
+        }
+      } catch (e) {
+        console.warn("snapshot failed", e);
+      }
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+      ws.onopen = () => console.log("ws connected");
+      ws.onclose = () => {
+        console.log("ws disconnected, retrying...");
+        setTimeout(connectWS, 1500);
+      };
+
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+
+        if (msg.type === "snapshot") {
+          // same shape as /snapshot
+          for (const [id, d] of Object.entries(msg.devices || {})) {
+            const trail = msg.trails ? msg.trails[id] : null;
+            upsertDevice(d, trail);
+          }
+          if (Array.isArray(msg.heat)) {
+            seedHeat(msg.heat);
+          }
+          if (Array.isArray(msg.routes)) {
+            msg.routes.forEach(r => upsertRoute(r, true));
+          }
+          return;
+        }
+
+        if (msg.type === "update") {
+          upsertDevice(msg.device, msg.trail);
+          return;
+        }
+
+        if (msg.type === "route") {
+          upsertRoute(msg.route);
+          return;
+        }
+
+        if (msg.type === "route_remove") {
+          removeRoutes(msg.route_ids || []);
+          return;
+        }
+
+        if (msg.type === "stale") {
+          removeDevices(msg.device_ids || []);
+          return;
+        }
+      };
+    }
+
+    initialSnapshot();
+    connectWS();
+    setStats();
+    setInterval(refreshHeatLayer, 15000);
+
+    const legendToggle = document.getElementById('legend-toggle');
+    const hud = document.querySelector('.hud');
+    if (legendToggle && hud) {
+      legendToggle.addEventListener('click', () => {
+        const collapsed = hud.classList.toggle('legend-collapsed');
+        legendToggle.textContent = collapsed ? 'Show legend' : 'Hide legend';
+      });
+    }
+
+    const mapToggle = document.getElementById('map-toggle');
+    const topoToggle = document.getElementById('topo-toggle');
+    function setBaseLayer(name) {
+      if (map.hasLayer(lightTiles)) map.removeLayer(lightTiles);
+      if (map.hasLayer(darkTiles)) map.removeLayer(darkTiles);
+      if (map.hasLayer(topoTiles)) map.removeLayer(topoTiles);
+      if (name === 'dark') {
+        map.addLayer(darkTiles);
+      } else if (name === 'topo') {
+        map.addLayer(topoTiles);
+      } else {
+        map.addLayer(lightTiles);
+      }
+      baseLayer = name;
+      localStorage.setItem('meshmapBaseLayer', baseLayer);
+      if (mapToggle) {
+        mapToggle.textContent = baseLayer === 'dark' ? 'Light map' : 'Dark map';
+      }
+      if (topoToggle) {
+        topoToggle.textContent = baseLayer === 'topo' ? 'Standard map' : 'Topo map';
+      }
+    }
+
+    if (mapToggle) {
+      mapToggle.addEventListener('click', () => {
+        setBaseLayer(baseLayer === 'dark' ? 'light' : 'dark');
+      });
+    }
+    if (topoToggle) {
+      topoToggle.addEventListener('click', () => {
+        setBaseLayer(baseLayer === 'topo' ? 'light' : 'topo');
+      });
+    }
+    setBaseLayer(baseLayer);
+  </script>
+</body>
+</html>
