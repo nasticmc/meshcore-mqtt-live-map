@@ -97,6 +97,53 @@
       background: rgba(34,197,94,.35);
       border-color: rgba(34,197,94,.6);
     }
+    .node-search {
+      margin-top: 6px;
+      position: relative;
+    }
+    .node-search-input {
+      width: 100%;
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(15,23,42,.6);
+      color: #fff;
+      outline: none;
+    }
+    .node-search-input::placeholder { color: rgba(255,255,255,.65); }
+    .node-search-results {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      background: rgba(15,23,42,.92);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      overflow: hidden;
+      z-index: 1000;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .node-search-item {
+      padding: 6px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .node-search-item:hover { background: rgba(255,255,255,.12); }
+    .node-search-id { opacity: 0.7; }
+    .node-label {
+      background: rgba(15,23,42,.8);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px;
+      padding: 2px 6px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
     .leaflet-popup-content { max-width: 260px; overflow-wrap: anywhere; word-break: break-word; }
     .popup-title { display: block; font-weight: 600; }
     .popup-id { display: block; opacity: 0.85; }
@@ -107,11 +154,26 @@
       border-radius: 10px;
       background: rgba(15,23,42,.35);
       border: 1px solid rgba(255,255,255,.15);
+      position: relative;
     }
     .los-profile-title { margin-bottom: 4px; }
     .los-profile svg { width: 100%; height: 86px; display: block; }
     .los-profile-terrain { fill: none; stroke: rgba(226,232,240,.85); stroke-width: 2; }
     .los-profile-los { fill: none; stroke-width: 2; }
+    .los-profile-tooltip {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(15,23,42,.92);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      padding: 4px 6px;
+      font-size: 11px;
+      color: #fff;
+      pointer-events: none;
+      white-space: nowrap;
+      transform: translate(-50%, -120%);
+    }
     .trail-animated {
       stroke-dasharray: 6 10;
       animation: trail-dash 6s linear infinite;
@@ -147,14 +209,20 @@
     <div class="small">{{SITE_FEED_NOTE}}</div>
     <div class="small" id="stats"></div>
     <div class="small" id="los-status"></div>
+    <div class="node-search">
+      <input class="node-search-input" id="node-search" type="text" placeholder="Search nodes by name or key..." autocomplete="off" />
+      <div class="node-search-results" id="node-search-results" hidden></div>
+    </div>
     <div class="los-profile" id="los-profile" hidden>
       <div class="small los-profile-title">Elevation profile</div>
       <svg id="los-profile-svg" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
+      <div class="los-profile-tooltip" id="los-profile-tooltip" hidden></div>
     </div>
     <button class="legend-toggle" id="legend-toggle" type="button">Hide legend</button>
     <button class="map-toggle" id="map-toggle" type="button">Dark map</button>
     <button class="map-toggle" id="topo-toggle" type="button">Topo map</button>
     <button class="map-toggle" id="los-toggle" type="button">LOS tool</button>
+    <button class="map-toggle" id="labels-toggle" type="button">Labels Off</button>
     <div class="legend">
       <div class="legend-item"><span class="legend-line legend-trace"></span> Trace/path</div>
       <div class="legend-item"><span class="legend-line legend-message"></span> Message</div>
@@ -202,6 +270,11 @@
     const polylines = new Map(); // device_id -> Leaflet polyline
     const routeLines = new Map(); // route_id -> { line, timeout }
     const routeLayer = L.layerGroup().addTo(map);
+    const losElevationUrl = '{{LOS_ELEVATION_URL}}';
+    const losSampleMin = Number('{{LOS_SAMPLE_MIN}}') || 10;
+    const losSampleMax = Number('{{LOS_SAMPLE_MAX}}') || 80;
+    const losSampleStepMeters = Number('{{LOS_SAMPLE_STEP_METERS}}') || 250;
+    const losPeaksMax = Number('{{LOS_PEAKS_MAX}}') || 4;
     const heatLayer = L.heatLayer([], {
       radius: 28,
       blur: 22,
@@ -216,8 +289,21 @@
     let losPoints = [];
     let losLine = null;
     let losSuggestion = null;
+    let losPeakMarkers = [];
     const losProfile = document.getElementById('los-profile');
     const losProfileSvg = document.getElementById('los-profile-svg');
+    const losProfileTooltip = document.getElementById('los-profile-tooltip');
+    let losProfileData = [];
+    let losProfileMeta = null;
+    const deviceData = new Map();
+    const searchInput = document.getElementById('node-search');
+    const searchResults = document.getElementById('node-search-results');
+    let searchMatches = [];
+    const storedLabels = localStorage.getItem('meshmapShowLabels');
+    let showLabels = storedLabels === 'true';
+    if (storedLabels === null) {
+      localStorage.setItem('meshmapShowLabels', 'false');
+    }
 
     function resolveRole(d) {
       const role = (d.role || '').toLowerCase();
@@ -251,10 +337,111 @@
       }
     }
 
+    function deviceShortId(d) {
+      return d.device_id ? `${d.device_id.slice(0, 8)}…` : '';
+    }
+
+    function deviceDisplayName(d) {
+      return d.name || deviceShortId(d) || 'Unknown';
+    }
+
+    function updateMarkerLabel(m, d) {
+      if (!m || !d) return;
+      if (!showLabels) {
+        if (m.getTooltip()) m.unbindTooltip();
+        return;
+      }
+      const label = deviceDisplayName(d);
+      if (!label) return;
+      if (m.getTooltip()) {
+        m.setTooltipContent(label);
+      } else {
+        m.bindTooltip(label, {
+          permanent: true,
+          direction: 'top',
+          className: 'node-label',
+          offset: [0, -6]
+        });
+      }
+    }
+
+    function renderSearchResults(query) {
+      if (!searchResults) return;
+      const q = (query || '').trim().toLowerCase();
+      searchMatches = [];
+      if (!q) {
+        searchResults.hidden = true;
+        searchResults.innerHTML = '';
+        return;
+      }
+      for (const [id, d] of deviceData.entries()) {
+        const name = (d.name || '').toLowerCase();
+        if (name.includes(q) || id.toLowerCase().includes(q)) {
+          searchMatches.push({ id, d });
+        }
+      }
+      searchMatches = searchMatches.slice(0, 8);
+      if (searchMatches.length === 0) {
+        searchResults.hidden = true;
+        searchResults.innerHTML = '';
+        return;
+      }
+      searchResults.innerHTML = '';
+      searchMatches.forEach(({ id, d }) => {
+        const item = document.createElement('div');
+        item.className = 'node-search-item';
+        item.innerHTML = `<span>${deviceDisplayName(d)}</span><span class="node-search-id">${id.slice(0, 8)}…</span>`;
+        item.addEventListener('click', () => focusDevice(id));
+        searchResults.appendChild(item);
+      });
+      searchResults.hidden = false;
+    }
+
+    function focusDevice(id) {
+      const marker = markers.get(id);
+      const d = deviceData.get(id);
+      if (!marker || !d) return;
+      const targetZoom = Math.max(map.getZoom(), 13);
+      map.flyTo(marker.getLatLng(), targetZoom, { duration: 0.6 });
+      marker.openPopup();
+      if (searchInput) searchInput.value = '';
+      if (searchResults) {
+        searchResults.hidden = true;
+        searchResults.innerHTML = '';
+      }
+    }
+
+    function setLabelsActive(active) {
+      showLabels = active;
+      localStorage.setItem('meshmapShowLabels', showLabels ? 'true' : 'false');
+      markers.forEach((m, id) => {
+        const d = deviceData.get(id);
+        if (d) updateMarkerLabel(m, d);
+      });
+      const labelsToggle = document.getElementById('labels-toggle');
+      if (labelsToggle) {
+        labelsToggle.textContent = showLabels ? 'Labels On' : 'Labels Off';
+        labelsToggle.classList.toggle('active', showLabels);
+      }
+    }
+
     function clearLosProfile() {
       if (!losProfile || !losProfileSvg) return;
       losProfile.hidden = true;
       losProfileSvg.innerHTML = '';
+      if (losProfileTooltip) {
+        losProfileTooltip.hidden = true;
+        losProfileTooltip.textContent = '';
+      }
+      losProfileData = [];
+      losProfileMeta = null;
+    }
+
+    function clearLosPeaks() {
+      losPeakMarkers.forEach(marker => {
+        losLayer.removeLayer(marker);
+      });
+      losPeakMarkers = [];
     }
 
     function clearLos() {
@@ -264,6 +451,7 @@
       losLayer.clearLayers();
       setLosStatus('');
       clearLosProfile();
+      clearLosPeaks();
     }
 
     function setLosActive(active) {
@@ -329,8 +517,210 @@
       losProfileSvg.innerHTML = `
         <path class="los-profile-terrain" d="${terrainPath}"></path>
         <path class="los-profile-los" d="${losPath}" stroke="${losColor}"></path>
+        <line id="los-profile-cursor" x1="0" y1="0" x2="0" y2="${height}" stroke="rgba(255,255,255,.35)" stroke-width="1" opacity="0" />
+        <circle id="los-profile-point" cx="0" cy="0" r="3" fill="${losColor}" opacity="0" />
       `;
+      losProfileData = profile;
+      losProfileMeta = {
+        width,
+        height,
+        pad,
+        minElev,
+        maxElev,
+        totalDistance,
+        innerWidth,
+        innerHeight,
+        blocked
+      };
       losProfile.hidden = false;
+    }
+
+    function formatDistanceMeters(meters) {
+      if (meters == null) return '';
+      const value = Number(meters);
+      if (Number.isNaN(value)) return '';
+      return value >= 1000 ? `${(value / 1000).toFixed(2)} km` : `${Math.round(value)} m`;
+    }
+
+    function formatElevationMeters(meters) {
+      if (meters == null) return '';
+      const value = Number(meters);
+      if (Number.isNaN(value)) return '';
+      return `${value.toFixed(1)} m`;
+    }
+
+    function updateLosProfileCursor(distance, terrain, losLineValue) {
+      if (!losProfileMeta || !losProfileSvg || !losProfileTooltip) return;
+      if (!losProfileData || losProfileData.length < 2) return;
+      const total = losProfileMeta.totalDistance;
+      const clampedDistance = Math.min(Math.max(distance, 0), total);
+      const xSvg = losProfileMeta.pad + (clampedDistance / total) * losProfileMeta.innerWidth;
+      const ySvg = losProfileMeta.height - losProfileMeta.pad -
+        ((terrain - losProfileMeta.minElev) / (losProfileMeta.maxElev - losProfileMeta.minElev)) * losProfileMeta.innerHeight;
+      const cursor = document.getElementById('los-profile-cursor');
+      const dot = document.getElementById('los-profile-point');
+      if (cursor) {
+        cursor.setAttribute('x1', xSvg.toFixed(2));
+        cursor.setAttribute('x2', xSvg.toFixed(2));
+        cursor.setAttribute('opacity', '1');
+      }
+      if (dot) {
+        dot.setAttribute('cx', xSvg.toFixed(2));
+        dot.setAttribute('cy', ySvg.toFixed(2));
+        dot.setAttribute('opacity', '1');
+      }
+      losProfileTooltip.hidden = false;
+      losProfileTooltip.textContent = `Distance ${formatDistanceMeters(clampedDistance)} • Terrain ${formatElevationMeters(terrain)} • LOS ${formatElevationMeters(losLineValue)}`;
+      losProfileTooltip.style.left = `${xSvg}px`;
+      losProfileTooltip.style.top = `${ySvg}px`;
+    }
+
+    function updateLosProfileHover(ev) {
+      if (!losProfileMeta || !losProfileSvg || !losProfileTooltip) return;
+      if (!losProfileData || losProfileData.length < 2) return;
+      const rect = losProfileSvg.getBoundingClientRect();
+      const x = Math.min(Math.max(ev.clientX - rect.left, losProfileMeta.pad), rect.width - losProfileMeta.pad);
+      const ratio = (x - losProfileMeta.pad) / Math.max(1, rect.width - losProfileMeta.pad * 2);
+      const idx = Math.min(losProfileData.length - 1, Math.max(0, Math.round(ratio * (losProfileData.length - 1))));
+      const point = losProfileData[idx];
+      if (!point) return;
+      updateLosProfileCursor(point[0], point[1], point[2]);
+    }
+
+    function updateLosProfileAtDistance(distanceMeters) {
+      if (!losProfileData || losProfileData.length < 2 || !losProfileMeta) return;
+      const total = losProfileMeta.totalDistance;
+      const clamped = Math.min(Math.max(distanceMeters, 0), total);
+      const idx = Math.min(losProfileData.length - 1, Math.max(0, Math.round((clamped / total) * (losProfileData.length - 1))));
+      const point = losProfileData[idx];
+      if (!point) return;
+      updateLosProfileCursor(point[0], point[1], point[2]);
+    }
+
+    function clearLosProfileHover() {
+      const cursor = document.getElementById('los-profile-cursor');
+      const dot = document.getElementById('los-profile-point');
+      if (cursor) cursor.setAttribute('opacity', '0');
+      if (dot) dot.setAttribute('opacity', '0');
+      if (losProfileTooltip) losProfileTooltip.hidden = true;
+    }
+
+    function updateLosProfileFromMap(latlng) {
+      if (!latlng || losPoints.length < 2) return;
+      if (!losProfileMeta || !losProfileData || losProfileData.length < 2) return;
+      const start = losPoints[0];
+      const end = losPoints[1];
+      const dLat = end.lat - start.lat;
+      const dLon = end.lng - start.lng;
+      const denom = (dLat * dLat) + (dLon * dLon);
+      if (denom === 0) return;
+      let t = ((latlng.lat - start.lat) * dLat + (latlng.lng - start.lng) * dLon) / denom;
+      t = Math.min(Math.max(t, 0), 1);
+      const totalDistance = haversineMeters(start.lat, start.lng, end.lat, end.lng);
+      updateLosProfileAtDistance(totalDistance * t);
+    }
+
+    function renderLosPeaks(peaks) {
+      clearLosPeaks();
+      if (!Array.isArray(peaks) || peaks.length === 0) return;
+      peaks.forEach((peak, idx) => {
+        const lat = Number(peak.lat);
+        const lon = Number(peak.lon);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) return;
+        const index = peak.index || (idx + 1);
+        const distance = formatDistanceMeters(peak.distance_m);
+        const elev = peak.elevation_m != null ? `${peak.elevation_m} m` : '';
+        const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        const tooltip = `Peak ${index}${distance ? ` • ${distance}` : ''}<br/>${coord}${elev ? `<br/>${elev}` : ''}`;
+        const marker = L.circleMarker([lat, lon], {
+          radius: 4,
+          color: '#f59e0b',
+          fillColor: '#fbbf24',
+          fillOpacity: 0.95,
+          weight: 2,
+          bubblingMouseEvents: false
+        }).addTo(losLayer);
+        marker.bindTooltip(tooltip, { direction: 'top', opacity: 0.9 });
+        marker.on('click', (ev) => {
+          if (ev && ev.originalEvent) {
+            ev.originalEvent.preventDefault();
+            ev.originalEvent.stopPropagation();
+          }
+          const coords = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(coords).then(() => {
+              setLosStatus(`LOS: Peak ${index} coords copied`);
+            }).catch(() => {
+              setLosStatus(`LOS: Peak ${index} ${coords}`);
+            });
+          } else {
+            setLosStatus(`LOS: Peak ${index} ${coords}`);
+          }
+        });
+        losPeakMarkers.push(marker);
+      });
+    }
+
+    async function runLosCheckServer(a, b) {
+      const params = new URLSearchParams({
+        lat1: a.lat.toFixed(6),
+        lon1: a.lng.toFixed(6),
+        lat2: b.lat.toFixed(6),
+        lon2: b.lng.toFixed(6)
+      });
+      const res = await fetch(`/los?${params.toString()}`);
+      const data = await res.json();
+      if (!data.ok) {
+        setLosStatus(`LOS: ${data.error || 'failed'}`);
+        if (losLine) {
+          losLine.setStyle({ color: '#9ca3af', weight: 4, opacity: 0.8, dashArray: '6 10' });
+        }
+        clearLosProfile();
+        clearLosPeaks();
+        return false;
+      }
+      const blocked = data.blocked;
+      let distance = '';
+      if (data.distance_m != null) {
+        const meters = Number(data.distance_m);
+        if (!Number.isNaN(meters)) {
+          distance = meters >= 1000
+            ? `${(meters / 1000).toFixed(2)} km`
+            : `${Math.round(meters)} m`;
+        }
+      }
+      const obstruction = blocked ? `Blocked (+${data.max_obstruction_m}m)` : 'Clear';
+      let statusText = `LOS: ${distance} • ${obstruction}`;
+      if (losSuggestion) {
+        losLayer.removeLayer(losSuggestion);
+        losSuggestion = null;
+      }
+      renderLosPeaks(data.peaks);
+      if (data.suggested) {
+        const s = data.suggested;
+        const label = s.clear ? 'Relay (Clear)' : 'Relay (Still Blocked)';
+        const color = s.clear ? '#22c55e' : '#f59e0b';
+        losSuggestion = L.circleMarker([s.lat, s.lon], {
+          radius: 6,
+          color,
+          fillColor: color,
+          fillOpacity: 0.9,
+          weight: 2
+        }).addTo(losLayer);
+        losSuggestion.bindTooltip(`${label}<br/>${s.lat}, ${s.lon}`, { direction: 'top' });
+        statusText += s.clear ? ' • Relay Suggested' : ' • Relay May Help (Still Blocked)';
+      }
+      setLosStatus(statusText);
+      renderLosProfile(data.profile, blocked);
+      if (losLine) {
+        losLine.setStyle({
+          color: blocked ? '#ef4444' : '#22c55e',
+          weight: 5,
+          opacity: 0.9,
+          dashArray: blocked ? '4 10' : null
+        });
+      }
+      return true;
     }
 
     function formatLastContact(tsSeconds) {
@@ -347,9 +737,157 @@
       });
     }
 
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function sampleLosPoints(lat1, lon1, lat2, lon2) {
+      const distance = haversineMeters(lat1, lon1, lat2, lon2);
+      if (distance <= 0) {
+        return [
+          { lat: lat1, lon: lon1, t: 0 },
+          { lat: lat2, lon: lon2, t: 1 }
+        ];
+      }
+      let samples = Math.floor(distance / Math.max(1, losSampleStepMeters)) + 1;
+      samples = Math.max(losSampleMin, Math.min(losSampleMax, samples));
+      if (samples < 2) samples = 2;
+      const points = [];
+      for (let i = 0; i < samples; i += 1) {
+        const t = i / (samples - 1);
+        const lat = lat1 + (lat2 - lat1) * t;
+        const lon = lon1 + (lon2 - lon1) * t;
+        points.push({ lat, lon, t });
+      }
+      return points;
+    }
+
+    async function fetchElevations(points) {
+      if (!losElevationUrl) {
+        return { ok: false, error: 'no_elevation_url' };
+      }
+      const results = new Array(points.length);
+      const chunkSize = 100;
+      for (let start = 0; start < points.length; start += chunkSize) {
+        const chunk = points.slice(start, start + chunkSize);
+        const locations = chunk.map(p => `${p.lat},${p.lon}`).join('|');
+        const url = `${losElevationUrl}?locations=${encodeURIComponent(locations)}`;
+        let payload;
+        try {
+          const res = await fetch(url);
+          payload = await res.json();
+        } catch (err) {
+          return { ok: false, error: 'elevation_fetch_failed' };
+        }
+        if (payload.status && payload.status !== 'OK') {
+          return { ok: false, error: `elevation_fetch_failed:${payload.status}` };
+        }
+        const elevs = payload.results || [];
+        if (elevs.length !== chunk.length) {
+          return { ok: false, error: 'elevation_fetch_failed:unexpected_length' };
+        }
+        elevs.forEach((entry, idx) => {
+          results[start + idx] = Number(entry.elevation);
+        });
+      }
+      if (results.some(val => val == null || Number.isNaN(val))) {
+        return { ok: false, error: 'elevation_fetch_failed:missing' };
+      }
+      return { ok: true, elevations: results };
+    }
+
+    function losMaxObstruction(points, elevations, startIdx, endIdx) {
+      if (endIdx <= startIdx + 1) return 0;
+      const startT = points[startIdx].t;
+      const endT = points[endIdx].t;
+      if (endT <= startT) return 0;
+      const startElev = elevations[startIdx];
+      const endElev = elevations[endIdx];
+      let maxObstruction = 0;
+      for (let idx = startIdx + 1; idx < endIdx; idx += 1) {
+        const frac = (points[idx].t - startT) / (endT - startT);
+        const lineElev = startElev + (endElev - startElev) * frac;
+        const clearance = elevations[idx] - lineElev;
+        if (clearance > maxObstruction) maxObstruction = clearance;
+      }
+      return maxObstruction;
+    }
+
+    function findLosSuggestion(points, elevations) {
+      if (points.length < 3) return null;
+      let bestIdx = null;
+      let bestScore = null;
+      let bestClear = false;
+      for (let idx = 1; idx < points.length - 1; idx += 1) {
+        const obstA = losMaxObstruction(points, elevations, 0, idx);
+        const obstB = losMaxObstruction(points, elevations, idx, points.length - 1);
+        const score = Math.max(obstA, obstB);
+        const clear = score <= 0;
+        if (clear && !bestClear) {
+          bestIdx = idx;
+          bestScore = score;
+          bestClear = true;
+        } else if (clear && bestClear) {
+          if (elevations[idx] > elevations[bestIdx]) {
+            bestIdx = idx;
+            bestScore = score;
+          }
+        } else if (!bestClear) {
+          if (bestScore == null || score < bestScore) {
+            bestIdx = idx;
+            bestScore = score;
+          }
+        }
+      }
+      if (bestIdx == null) return null;
+      return {
+        lat: Number(points[bestIdx].lat.toFixed(6)),
+        lon: Number(points[bestIdx].lon.toFixed(6)),
+        elevation_m: Number(elevations[bestIdx].toFixed(2)),
+        clear: bestClear,
+        max_obstruction_m: bestScore != null ? Number(bestScore.toFixed(2)) : null
+      };
+    }
+
+    function findLosPeaks(points, elevations, distanceMeters) {
+      if (points.length < 3) return [];
+      const peakIndices = [];
+      for (let i = 1; i < elevations.length - 1; i += 1) {
+        const elev = elevations[i];
+        if (elev >= elevations[i - 1] && elev >= elevations[i + 1]) {
+          peakIndices.push(i);
+        }
+      }
+      if (peakIndices.length === 0) {
+        let maxIdx = 1;
+        for (let i = 2; i < elevations.length - 1; i += 1) {
+          if (elevations[i] > elevations[maxIdx]) maxIdx = i;
+        }
+        peakIndices.push(maxIdx);
+      }
+      const limited = peakIndices
+        .sort((a, b) => elevations[b] - elevations[a])
+        .slice(0, losPeaksMax)
+        .sort((a, b) => points[a].t - points[b].t);
+      return limited.map((idx, i) => ({
+        index: i + 1,
+        lat: Number(points[idx].lat.toFixed(6)),
+        lon: Number(points[idx].lon.toFixed(6)),
+        elevation_m: Number(elevations[idx].toFixed(2)),
+        distance_m: Number((distanceMeters * points[idx].t).toFixed(2))
+      }));
+    }
+
     function makePopup(d) {
       const lastContact = formatLastContact(d.ts);
-      const deviceLabel = d.device_id ? `${d.device_id.slice(0, 8)}…` : '';
+      const deviceLabel = deviceShortId(d);
       const title = d.name
         ? `<span class="popup-title">${d.name}</span><span class="popup-id">${deviceLabel}</span>`
         : `<span class="popup-title popup-id">${deviceLabel}</span>`;
@@ -372,6 +910,7 @@
       const latlng = [d.lat, d.lon];
       const role = resolveRole(d);
       const style = markerStyleForRole(role);
+      deviceData.set(id, d);
 
       // marker
       if (!markers.has(id)) {
@@ -397,11 +936,13 @@
           }
         });
         markers.set(id, m);
+        updateMarkerLabel(m, d);
       } else {
         const m = markers.get(id);
         m.setLatLng(latlng);
         m.setPopupContent(makePopup(d));
         if (m.setStyle) m.setStyle(style);
+        updateMarkerLabel(m, d);
       }
 
       // trail polyline (skip companions)
@@ -435,6 +976,9 @@
         if (markers.has(id)) {
           map.removeLayer(markers.get(id));
           markers.delete(id);
+        }
+        if (deviceData.has(id)) {
+          deviceData.delete(id);
         }
         if (polylines.has(id)) {
           map.removeLayer(polylines.get(id));
@@ -609,41 +1153,55 @@
       if (losPoints.length < 2) return;
       const [a, b] = losPoints;
       setLosStatus('LOS: calculating...');
-      const params = new URLSearchParams({
-        lat1: a.lat.toFixed(6),
-        lon1: a.lng.toFixed(6),
-        lat2: b.lat.toFixed(6),
-        lon2: b.lng.toFixed(6)
-      });
       try {
-        const res = await fetch(`/los?${params.toString()}`);
-        const data = await res.json();
-        if (!data.ok) {
-          setLosStatus(`LOS: ${data.error || 'failed'}`);
+        const distanceMeters = haversineMeters(a.lat, a.lng, b.lat, b.lng);
+        if (distanceMeters <= 0) {
+          setLosStatus('LOS: invalid distance');
+          return;
+        }
+        const points = sampleLosPoints(a.lat, a.lng, b.lat, b.lng);
+        const elevationResult = await fetchElevations(points);
+        if (!elevationResult.ok) {
+          const fallbackOk = await runLosCheckServer(a, b);
+          if (fallbackOk) return;
+          setLosStatus(`LOS: ${elevationResult.error || 'failed'}`);
           if (losLine) {
             losLine.setStyle({ color: '#9ca3af', weight: 4, opacity: 0.8, dashArray: '6 10' });
           }
           clearLosProfile();
+          clearLosPeaks();
           return;
         }
-        const blocked = data.blocked;
+        const elevations = elevationResult.elevations;
+        const startElev = elevations[0];
+        const endElev = elevations[elevations.length - 1];
+        const maxObstruction = losMaxObstruction(points, elevations, 0, elevations.length - 1);
+        const blocked = maxObstruction > 0;
+        const suggestion = blocked ? findLosSuggestion(points, elevations) : null;
+        const profile = points.map((p, idx) => {
+          const lineElev = startElev + (endElev - startElev) * p.t;
+          return [
+            Number((distanceMeters * p.t).toFixed(2)),
+            Number(elevations[idx].toFixed(2)),
+            Number(lineElev.toFixed(2))
+          ];
+        });
+        const peaks = findLosPeaks(points, elevations, distanceMeters);
         let distance = '';
-        if (data.distance_m != null) {
-          const meters = Number(data.distance_m);
-          if (!Number.isNaN(meters)) {
-            distance = meters >= 1000
-              ? `${(meters / 1000).toFixed(2)} km`
-              : `${Math.round(meters)} m`;
-          }
+        if (!Number.isNaN(distanceMeters)) {
+          distance = distanceMeters >= 1000
+            ? `${(distanceMeters / 1000).toFixed(2)} km`
+            : `${Math.round(distanceMeters)} m`;
         }
-        const obstruction = blocked ? `Blocked (+${data.max_obstruction_m}m)` : 'Clear';
+        const obstruction = blocked ? `Blocked (+${maxObstruction.toFixed(2)}m)` : 'Clear';
         let statusText = `LOS: ${distance} • ${obstruction}`;
         if (losSuggestion) {
           losLayer.removeLayer(losSuggestion);
           losSuggestion = null;
         }
-        if (data.suggested) {
-          const s = data.suggested;
+        renderLosPeaks(peaks);
+        if (suggestion) {
+          const s = suggestion;
           const label = s.clear ? 'Relay (Clear)' : 'Relay (Still Blocked)';
           const color = s.clear ? '#22c55e' : '#f59e0b';
           losSuggestion = L.circleMarker([s.lat, s.lon], {
@@ -657,7 +1215,7 @@
           statusText += s.clear ? ' • Relay Suggested' : ' • Relay May Help (Still Blocked)';
         }
         setLosStatus(statusText);
-        renderLosProfile(data.profile, blocked);
+        renderLosProfile(profile, blocked);
         if (losLine) {
           losLine.setStyle({
             color: blocked ? '#ef4444' : '#22c55e',
@@ -670,6 +1228,7 @@
         console.warn('los failed', err);
         setLosStatus('LOS: error');
         clearLosProfile();
+        clearLosPeaks();
       }
     }
 
@@ -728,6 +1287,37 @@
     }
     setBaseLayer(baseLayer);
 
+    const labelsToggle = document.getElementById('labels-toggle');
+    if (labelsToggle) {
+      labelsToggle.addEventListener('click', () => {
+        setLabelsActive(!showLabels);
+      });
+    }
+    setLabelsActive(showLabels);
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (ev) => {
+        renderSearchResults(ev.target.value);
+      });
+      searchInput.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && searchMatches.length > 0) {
+          ev.preventDefault();
+          focusDevice(searchMatches[0].id);
+        }
+      });
+    }
+    document.addEventListener('click', (ev) => {
+      if (!searchResults || !searchInput) return;
+      if (searchResults.contains(ev.target) || searchInput.contains(ev.target)) return;
+      searchResults.hidden = true;
+      searchResults.innerHTML = '';
+    });
+
+    if (losProfileSvg) {
+      losProfileSvg.addEventListener('mousemove', updateLosProfileHover);
+      losProfileSvg.addEventListener('mouseleave', clearLosProfileHover);
+    }
+
     const losToggle = document.getElementById('los-toggle');
     if (losToggle) {
       losToggle.addEventListener('click', () => {
@@ -759,6 +1349,12 @@
           opacity: 0.8,
           dashArray: '6 10'
         }).addTo(losLayer);
+        losLine.on('mousemove', (ev) => {
+          if (ev && ev.latlng) {
+            updateLosProfileFromMap(ev.latlng);
+          }
+        });
+        losLine.on('mouseout', clearLosProfileHover);
         runLosCheck();
       }
     }

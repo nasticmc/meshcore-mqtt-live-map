@@ -84,6 +84,7 @@ LOS_SAMPLE_MIN = int(os.getenv("LOS_SAMPLE_MIN", "10"))
 LOS_SAMPLE_MAX = int(os.getenv("LOS_SAMPLE_MAX", "80"))
 LOS_SAMPLE_STEP_METERS = int(os.getenv("LOS_SAMPLE_STEP_METERS", "250"))
 ELEVATION_CACHE_TTL = int(os.getenv("ELEVATION_CACHE_TTL", "21600"))
+LOS_PEAKS_MAX = int(os.getenv("LOS_PEAKS_MAX", "4"))
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 NODE_SCRIPT_PATH = os.path.join(APP_DIR, "meshcore_decode.mjs")
@@ -570,6 +571,42 @@ def _find_los_suggestion(points: List[Tuple[float, float, float]], elevations: L
     "clear": best_clear,
     "max_obstruction_m": round(float(best_score), 2) if best_score is not None else None,
   }
+
+
+def _find_los_peaks(
+  points: List[Tuple[float, float, float]],
+  elevations: List[float],
+  distance_m: float,
+) -> List[Dict[str, Any]]:
+  if len(points) < 3:
+    return []
+
+  peak_indices = []
+  for idx in range(1, len(elevations) - 1):
+    elev = elevations[idx]
+    if elev >= elevations[idx - 1] and elev >= elevations[idx + 1]:
+      peak_indices.append(idx)
+
+  if not peak_indices:
+    try:
+      peak_indices = [max(range(1, len(elevations) - 1), key=lambda i: elevations[i])]
+    except ValueError:
+      return []
+
+  peak_indices = sorted(peak_indices, key=lambda i: elevations[i], reverse=True)[:LOS_PEAKS_MAX]
+  peak_indices = sorted(peak_indices, key=lambda i: points[i][2])
+
+  peaks = []
+  for i, idx in enumerate(peak_indices, start=1):
+    t = points[idx][2]
+    peaks.append({
+      "index": i,
+      "lat": round(points[idx][0], 6),
+      "lon": round(points[idx][1], 6),
+      "elevation_m": round(float(elevations[idx]), 2),
+      "distance_m": round(distance_m * t, 2),
+    })
+  return peaks
 
 
 def _extract_device_name(obj: Any, topic: str) -> Optional[str]:
@@ -1683,6 +1720,11 @@ def root():
     "MAP_START_LAT": MAP_START_LAT,
     "MAP_START_LON": MAP_START_LON,
     "MAP_START_ZOOM": MAP_START_ZOOM,
+    "LOS_ELEVATION_URL": LOS_ELEVATION_URL,
+    "LOS_SAMPLE_MIN": LOS_SAMPLE_MIN,
+    "LOS_SAMPLE_MAX": LOS_SAMPLE_MAX,
+    "LOS_SAMPLE_STEP_METERS": LOS_SAMPLE_STEP_METERS,
+    "LOS_PEAKS_MAX": LOS_PEAKS_MAX,
   }
   for key, value in replacements.items():
     safe_value = html.escape(str(value), quote=True)
@@ -1760,6 +1802,7 @@ def line_of_sight(lat1: float, lon1: float, lat2: float, lon2: float):
         round(float(elev), 2),
         round(float(line_elev), 2),
       ])
+  peaks = _find_los_peaks(points, elevations, distance_m)
 
   return {
     "ok": True,
@@ -1778,6 +1821,7 @@ def line_of_sight(lat1: float, lon1: float, lat2: float, lon2: float):
     "note": "Straight-line LOS using SRTM90m. No curvature/refraction.",
     "suggested": suggestion,
     "profile": profile,
+    "peaks": peaks,
   }
 
 

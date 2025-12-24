@@ -9,7 +9,9 @@ Live example: https://live.bostonme.sh/
 - Animated route/trace lines and message fanout
 - Heat map for the last 10 minutes of message activity
 - Persistent device state and trails
-- UI controls: legend toggle, dark map, topo map
+- UI controls: legend toggle, dark map, topo map, labels toggle
+- Node search by name or public key
+- LOS tool with elevation profile + peak markers and hover sync
 - Embeddable metadata (Open Graph/Twitter tags) driven by env vars
 
 ## Project Structure
@@ -65,6 +67,8 @@ Runtime tuning:
 - `LOS_ELEVATION_URL` (elevation API for LOS tool)
 - `LOS_SAMPLE_MIN` / `LOS_SAMPLE_MAX` / `LOS_SAMPLE_STEP_METERS`
 - `ELEVATION_CACHE_TTL` (seconds)
+- `LOS_PEAKS_MAX` (max peaks shown on LOS profile)
+- `MAP_START_LAT` / `MAP_START_LON` / `MAP_START_ZOOM` (default map view)
 
 ## Common Commands
 - Rebuild/restart: `docker compose up -d --build`
@@ -77,6 +81,7 @@ Runtime tuning:
 - To see full paths, the feed must include Path/Trace packets (payload types 8/9) or multiple observers for fanout.
 - Runtime state is persisted to `data/state.json`.
 - Line-of-sight tool: click **LOS tool** and pick two points, or **Shift+click** two nodes to measure LOS between them.
+- LOS fetches elevation data in the browser; if CORS blocks, it falls back to the server `/los` endpoint.
 
 ## License
 [GPL-3.0](https://github.com/yellowcooln/meshcore-mqtt-live-map?tab=License-1-ov-file#).

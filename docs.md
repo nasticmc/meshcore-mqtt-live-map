@@ -29,10 +29,13 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - Base map toggle: Light/Dark/Topo; persisted to localStorage.
 - Legend is collapsible and persisted to localStorage.
 - Map start position is configurable with `MAP_START_LAT`, `MAP_START_LON`, `MAP_START_ZOOM`.
+- Node search (name or key) and a labels toggle (persisted to localStorage).
 
 ## LOS (Line of Sight) Tool
-- `/los` samples terrain via OpenTopodata SRTM90m and returns a profile.
-- UI draws an LOS line (green clear / red blocked) and renders an elevation profile panel.
+- Client-side LOS fetches terrain from OpenTopodata SRTM90m; if CORS fails it falls back to `/los`.
+- UI draws an LOS line (green clear / red blocked), renders an elevation profile, and marks peaks.
+- Peak markers show coords + elevation and copy coords on click.
+- Hovering the profile or the LOS line syncs a cursor tooltip on the profile.
 - Shift+click nodes or click two points on the map to run LOS.
 
 ## Device Names + Roles
