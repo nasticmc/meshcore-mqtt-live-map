@@ -6,10 +6,11 @@ Live example: https://live.bostonme.sh/
 
 ## Features
 - Live node markers with roles (Repeater, Companion, Room Server, Unknown)
+- MQTT online indicator (green outline + popup status)
 - Animated route/trace lines and message fanout
-- Heat map for the last 10 minutes of message activity
+- Heat map for the last 10 minutes of message activity (includes adverts)
 - Persistent device state and trails
-- UI controls: legend toggle, dark map, topo map, labels toggle
+- UI controls: legend toggle, dark map, topo map, labels toggle, hide nodes
 - Node search by name or public key
 - LOS tool with elevation profile + peak markers and hover sync
 - Embeddable metadata (Open Graph/Twitter tags) driven by env vars
@@ -63,6 +64,8 @@ Runtime tuning:
 - `ROUTE_TTL_SECONDS`
 - `HEAT_TTL_SECONDS`
 - `MESSAGE_ORIGIN_TTL_SECONDS`
+- `MQTT_ONLINE_SECONDS` (online window for status ring)
+- `MQTT_ONLINE_TOPIC_SUFFIXES` (comma-separated topics that count as “online”)
 - `DEBUG_PAYLOAD` (verbose decoding logs)
 - `LOS_ELEVATION_URL` (elevation API for LOS tool)
 - `LOS_SAMPLE_MIN` / `LOS_SAMPLE_MAX` / `LOS_SAMPLE_STEP_METERS`
@@ -81,7 +84,8 @@ Runtime tuning:
 - To see full paths, the feed must include Path/Trace packets (payload types 8/9) or multiple observers for fanout.
 - Runtime state is persisted to `data/state.json`.
 - Line-of-sight tool: click **LOS tool** and pick two points, or **Shift+click** two nodes to measure LOS between them.
-- LOS fetches elevation data in the browser; if CORS blocks, it falls back to the server `/los` endpoint.
+- LOS runs server-side via `/los` (no client-side elevation fetch).
+- Dark map also darkens node popups for readability.
 
 ## License
 [GPL-3.0](https://github.com/yellowcooln/meshcore-mqtt-live-map?tab=License-1-ov-file#).
