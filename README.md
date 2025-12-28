@@ -86,6 +86,7 @@ Runtime tuning:
 - The map can only draw routes for hops that appear in your MQTT feed.
 - To see full paths, the feed must include Path/Trace packets (payload types 8/9) or multiple observers for fanout.
 - Runtime state is persisted to `data/state.json`.
+- MQTT disconnects are handled; the client will reconnect when the broker returns.
 - Line-of-sight tool: click **LOS tool** and pick two points, or **Shift+click** two nodes to measure LOS between them.
 - LOS runs server-side via `/los` (no client-side elevation fetch).
 - Dark map also darkens node popups for readability.

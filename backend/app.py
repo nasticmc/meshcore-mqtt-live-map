@@ -1400,7 +1400,7 @@ def mqtt_on_connect(client, userdata, flags, reason_code, properties=None):
   client.subscribe(MQTT_TOPIC, qos=0)
 
 
-def mqtt_on_disconnect(client, userdata, reason_code, properties=None):
+def mqtt_on_disconnect(client, userdata, reason_code, properties=None, *args, **kwargs):
   print(f"[mqtt] disconnected reason_code={reason_code}")
 
 

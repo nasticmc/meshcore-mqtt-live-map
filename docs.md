@@ -98,3 +98,4 @@ If routes aren’t visible:
 - LOS is server-side only; elevation profile/peaks are returned by `/los`.
 - MQTT online indicator (green outline + legend) and configurable online window.
 - Filters out `0,0` GPS points from devices, trails, and routes.
+- Fixed MQTT disconnect callback signature so broker drops don’t crash the MQTT loop.
