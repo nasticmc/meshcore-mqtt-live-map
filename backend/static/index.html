@@ -332,6 +332,7 @@
     <button class="map-toggle" id="labels-toggle" type="button">Labels Off</button>
     <button class="map-toggle" id="nodes-toggle" type="button">Hide nodes</button>
     <button class="map-toggle" id="history-toggle" type="button">Hide history</button>
+    <button class="map-toggle" id="heat-toggle" type="button">Hide heat</button>
     <button class="map-toggle" id="prop-toggle" type="button">Propagation</button>
     <div class="prop-panel" id="prop-panel">
       <div class="small"><strong>Propagation estimate</strong></div>
@@ -504,7 +505,7 @@
       minOpacity: 0.2,
       maxZoom: 16,
       gradient: { 0.2: '#fbbf24', 0.5: '#f97316', 0.8: '#ef4444', 1.0: '#b91c1c' }
-    }).addTo(map);
+    });
     const heatPoints = [];
     const HEAT_TTL_MS = 10 * 60 * 1000;
     const losLayer = L.layerGroup().addTo(map);
@@ -533,6 +534,11 @@
     let historyVisible = storedHistory === 'true';
     if (storedHistory === null) {
       localStorage.setItem('meshmapShowHistory', 'false');
+    }
+    const storedHeat = localStorage.getItem('meshmapShowHeat');
+    let heatVisible = storedHeat !== 'false';
+    if (storedHeat === null) {
+      localStorage.setItem('meshmapShowHeat', 'true');
     }
     const mqttWindowLabel = document.getElementById('mqtt-online-label');
     if (mqttWindowLabel) {
@@ -645,7 +651,7 @@
         if (historyVisible && !map.hasLayer(historyLayer)) {
           historyLayer.addTo(map);
         }
-        if (!map.hasLayer(heatLayer)) {
+        if (heatVisible && !map.hasLayer(heatLayer)) {
           heatLayer.addTo(map);
         }
       } else if (map.hasLayer(markerLayer)) {
@@ -690,6 +696,28 @@
         }
       } else if (map.hasLayer(historyLayer)) {
         map.removeLayer(historyLayer);
+      }
+    }
+
+    function setHeatVisible(visible) {
+      heatVisible = visible;
+      const btn = document.getElementById('heat-toggle');
+      if (btn) {
+        btn.classList.toggle('active', !visible);
+        btn.textContent = visible ? 'Hide heat' : 'Show heat';
+      }
+      if (!nodesVisible) {
+        if (map.hasLayer(heatLayer)) {
+          map.removeLayer(heatLayer);
+        }
+        return;
+      }
+      if (visible) {
+        if (!map.hasLayer(heatLayer)) {
+          heatLayer.addTo(map);
+        }
+      } else if (map.hasLayer(heatLayer)) {
+        map.removeLayer(heatLayer);
       }
     }
 
@@ -2923,6 +2951,20 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       historyToggle.addEventListener('click', () => {
         setHistoryVisible(!historyVisible);
         localStorage.setItem('meshmapShowHistory', historyVisible ? 'true' : 'false');
+      });
+    }
+
+    const heatToggle = document.getElementById('heat-toggle');
+    if (heatToggle) {
+      const storedHeatVisible = localStorage.getItem('meshmapShowHeat');
+      if (storedHeatVisible !== null) {
+        setHeatVisible(storedHeatVisible === 'true');
+      } else {
+        setHeatVisible(true);
+      }
+      heatToggle.addEventListener('click', () => {
+        setHeatVisible(!heatVisible);
+        localStorage.setItem('meshmapShowHeat', heatVisible ? 'true' : 'false');
       });
     }
 

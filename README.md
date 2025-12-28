@@ -13,7 +13,7 @@ Live example: https://live.bostonme.sh/
 - Heat map for the last 10 minutes of message activity (includes adverts)
 - Persistent device state and trails
 - 24-hour route history overlay (toggle) with volume-based coloring
-- UI controls: legend toggle, dark map, topo map, labels toggle, hide nodes
+- UI controls: legend toggle, dark map, topo map, labels toggle, hide nodes, heat toggle
 - Node search by name or public key
 - LOS tool with elevation profile + peak markers and hover sync
 - Embeddable metadata (Open Graph/Twitter tags) driven by env vars
