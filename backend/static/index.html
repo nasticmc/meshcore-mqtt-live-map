@@ -80,16 +80,12 @@
     }
     .legend-los-clear { border-color: #22c55e; border-top-style: solid; }
     .legend-los-blocked { border-color: #ef4444; border-top-style: dashed; }
-    .legend-los-group { display: none; }
-    .legend-los-group.active { display: block; }
     .legend-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid; display: inline-block; }
     .legend-repeater { border-color: #1d4ed8; background: #2b8cff; }
     .legend-companion { border-color: #6b21a8; background: #a855f7; }
     .legend-room { border-color: #b45309; background: #f59e0b; }
     .legend-unknown { border-color: #4b5563; background: #d1d5db; }
     .legend-online { border-color: #22c55e; background: rgba(34, 197, 94, 0.15); }
-    .legend-los-peak { border-color: #f59e0b; background: #fbbf24; }
-    .legend-los-relay { border-color: #f8fafc; background: linear-gradient(135deg, #22c55e 0%, #f59e0b 100%); }
     .legend-heat { width: 30px; height: 10px; border-radius: 6px; background: linear-gradient(90deg, #fbbf24, #f97316, #ef4444, #b91c1c); border: 1px solid rgba(255,255,255,.25); display: inline-block; }
     .legend-toggle {
       margin-top: 6px;
@@ -436,12 +432,8 @@
         <span class="legend-history-swatch"></span>
         <span id="history-window-label">History (24h • volume)</span>
       </div>
-      <div class="legend-los-group" id="legend-los-group">
-        <div class="legend-item"><span class="legend-line legend-los-clear"></span> LOS clear</div>
-        <div class="legend-item"><span class="legend-line legend-los-blocked"></span> LOS blocked</div>
-        <div class="legend-item"><span class="legend-dot legend-los-peak"></span> LOS peak</div>
-        <div class="legend-item"><span class="legend-dot legend-los-relay"></span> Relay suggested</div>
-      </div>
+      <div class="legend-item"><span class="legend-line legend-los-clear"></span> LOS clear</div>
+      <div class="legend-item"><span class="legend-line legend-los-blocked"></span> LOS blocked</div>
       <div class="legend-item"><span class="legend-heat"></span> Heat (last 10 min)</div>
       <div class="legend-item"><span class="legend-dot legend-online"></span><span id="mqtt-online-label">MQTT online (last 5 min)</span></div>
       <div class="legend-item"><span class="legend-dot legend-repeater"></span> Repeater</div>
@@ -525,12 +517,9 @@
     let losLine = null;
     let losSuggestion = null;
     let losPeakMarkers = [];
-    let losHoverMarker = null;
-    let losActivePeak = null;
     const losProfile = document.getElementById('los-profile');
     const losProfileSvg = document.getElementById('los-profile-svg');
     const losProfileTooltip = document.getElementById('los-profile-tooltip');
-    const losLegendGroup = document.getElementById('legend-los-group');
     let losProfileData = [];
     let losProfileMeta = null;
     const deviceData = new Map();
@@ -858,31 +847,10 @@
     }
 
     function clearLosPeaks() {
-      losPeakMarkers.forEach(item => {
-        const marker = item && item.marker ? item.marker : item;
-        if (marker) {
-          losLayer.removeLayer(marker);
-        }
+      losPeakMarkers.forEach(marker => {
+        losLayer.removeLayer(marker);
       });
       losPeakMarkers = [];
-      losActivePeak = null;
-    }
-
-    function clearLosHoverMarker() {
-      if (losHoverMarker) {
-        losLayer.removeLayer(losHoverMarker);
-        losHoverMarker = null;
-      }
-      if (losActivePeak && losActivePeak.marker) {
-        losActivePeak.marker.setStyle({
-          radius: 4,
-          color: '#f59e0b',
-          fillColor: '#fbbf24',
-          weight: 2,
-          fillOpacity: 0.95
-        });
-        losActivePeak = null;
-      }
     }
     function setPropStatus(text) {
       const el = document.getElementById('prop-status');
@@ -912,7 +880,6 @@
       setLosStatus('');
       clearLosProfile();
       clearLosPeaks();
-      clearLosHoverMarker();
     }
 
     function setLosActive(active) {
@@ -921,9 +888,6 @@
       if (btn) {
         btn.classList.toggle('active', active);
         btn.textContent = active ? 'LOS: click 2 points' : 'LOS tool';
-      }
-      if (losLegendGroup) {
-        losLegendGroup.classList.toggle('active', active);
       }
       if (!active) {
         clearLos();
@@ -1039,94 +1003,6 @@
       losProfileTooltip.style.top = `${ySvg}px`;
     }
 
-    function updateLosPeakHighlight(distanceMeters) {
-      if (!losPeakMarkers.length || distanceMeters == null) {
-        if (losActivePeak) {
-          losActivePeak.marker.setStyle({
-            radius: 4,
-            color: '#f59e0b',
-            fillColor: '#fbbf24',
-            weight: 2,
-            fillOpacity: 0.95
-          });
-          losActivePeak = null;
-        }
-        return null;
-      }
-      const threshold = Math.max(200, losSampleStepMeters * 1.5);
-      let best = null;
-      losPeakMarkers.forEach(item => {
-        if (!item || item.distance == null) return;
-        const delta = Math.abs(item.distance - distanceMeters);
-        if (delta <= threshold && (!best || delta < best.delta)) {
-          best = { item, delta };
-        }
-      });
-      if (!best) {
-        if (losActivePeak) {
-          losActivePeak.marker.setStyle({
-            radius: 4,
-            color: '#f59e0b',
-            fillColor: '#fbbf24',
-            weight: 2,
-            fillOpacity: 0.95
-          });
-          losActivePeak = null;
-        }
-        return null;
-      }
-      if (losActivePeak && losActivePeak !== best.item) {
-        losActivePeak.marker.setStyle({
-          radius: 4,
-          color: '#f59e0b',
-          fillColor: '#fbbf24',
-          weight: 2,
-          fillOpacity: 0.95
-        });
-      }
-      if (!losActivePeak || losActivePeak !== best.item) {
-        best.item.marker.setStyle({
-          radius: 6,
-          color: '#f97316',
-          fillColor: '#fbbf24',
-          weight: 2,
-          fillOpacity: 1
-        });
-        best.item.marker.openTooltip();
-        losActivePeak = best.item;
-      }
-      return `Peak ${best.item.index}`;
-    }
-
-    function updateLosMapHover(distanceMeters) {
-      if (!losProfileMeta || !losPoints || losPoints.length < 2) return;
-      const total = losProfileMeta.totalDistance;
-      const clamped = Math.min(Math.max(distanceMeters, 0), total);
-      const t = total > 0 ? (clamped / total) : 0;
-      const start = losPoints[0];
-      const end = losPoints[1];
-      const lat = start.lat + (end.lat - start.lat) * t;
-      const lon = start.lng + (end.lng - start.lng) * t;
-      const label = updateLosPeakHighlight(clamped);
-      const tooltip = label
-        ? `${label} • ${formatDistanceMeters(clamped)}`
-        : `LOS point • ${formatDistanceMeters(clamped)}`;
-      if (!losHoverMarker) {
-        losHoverMarker = L.circleMarker([lat, lon], {
-          radius: 5,
-          color: '#e2e8f0',
-          fillColor: '#0f172a',
-          fillOpacity: 0.9,
-          weight: 2,
-          bubblingMouseEvents: false
-        }).addTo(losLayer);
-      } else {
-        losHoverMarker.setLatLng([lat, lon]);
-      }
-      losHoverMarker.bindTooltip(tooltip, { direction: 'top', opacity: 0.9, offset: [0, -8] });
-      losHoverMarker.openTooltip();
-    }
-
     function updateLosProfileHover(ev) {
       if (!losProfileMeta || !losProfileSvg || !losProfileTooltip) return;
       if (!losProfileData || losProfileData.length < 2) return;
@@ -1137,7 +1013,6 @@
       const point = losProfileData[idx];
       if (!point) return;
       updateLosProfileCursor(point[0], point[1], point[2]);
-      updateLosMapHover(point[0]);
     }
 
     function updateLosProfileAtDistance(distanceMeters) {
@@ -1148,7 +1023,6 @@
       const point = losProfileData[idx];
       if (!point) return;
       updateLosProfileCursor(point[0], point[1], point[2]);
-      updateLosMapHover(point[0]);
     }
 
     function clearLosProfileHover() {
@@ -1157,7 +1031,6 @@
       if (cursor) cursor.setAttribute('opacity', '0');
       if (dot) dot.setAttribute('opacity', '0');
       if (losProfileTooltip) losProfileTooltip.hidden = true;
-      clearLosHoverMarker();
     }
 
     function updateLosProfileFromMap(latlng) {
@@ -1183,8 +1056,7 @@
         const lon = Number(peak.lon);
         if (Number.isNaN(lat) || Number.isNaN(lon)) return;
         const index = peak.index || (idx + 1);
-        const distanceMeters = peak.distance_m != null ? Number(peak.distance_m) : null;
-        const distance = formatDistanceMeters(distanceMeters);
+        const distance = formatDistanceMeters(peak.distance_m);
         const elev = peak.elevation_m != null ? `${peak.elevation_m} m` : '';
         const coord = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         const tooltip = `Peak ${index}${distance ? ` • ${distance}` : ''}<br/>${coord}${elev ? `<br/>${elev}` : ''}`;
@@ -1213,13 +1085,7 @@
             setLosStatus(`LOS: Peak ${index} ${coords}`);
           }
         });
-        losPeakMarkers.push({
-          marker,
-          index,
-          distance: Number.isNaN(distanceMeters) ? null : distanceMeters,
-          lat,
-          lon
-        });
+        losPeakMarkers.push(marker);
       });
     }
 

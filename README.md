@@ -15,8 +15,7 @@ Live example: https://live.bostonme.sh/
 - 24-hour route history overlay (toggle) with volume-based coloring and click-to-view packet details
 - UI controls: legend toggle, dark map, topo map, labels toggle, hide nodes, heat toggle
 - Node search by name or public key
-- LOS tool with elevation profile, peak markers, relay suggestions, and map hover sync
-- LOS legend items only appear when the LOS tool is active
+- LOS tool with elevation profile + peak markers and hover sync
 - Embeddable metadata (Open Graph/Twitter tags) driven by env vars
 
 ## Project Structure
