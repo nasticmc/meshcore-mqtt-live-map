@@ -28,9 +28,6 @@
       cursor: pointer;
     }
     .hud-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: rgba(255,255,255,.08); padding: 2px; }
-    .hud-logo-text { display: none; width: 28px; height: 28px; border-radius: 6px; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; letter-spacing: 0.2px; color: #fff; background: rgba(255,255,255,.12); }
-    .hud-toggle.hud-toggle-fallback .hud-logo { display: none; }
-    .hud-toggle.hud-toggle-fallback .hud-logo-text { display: inline-flex; }
     .hud.panel-hidden {
       background: transparent;
       border: none;

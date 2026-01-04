@@ -20,7 +20,6 @@ Live example: https://live.bostonme.sh/
 - Propagation panel lives on the right and keeps the last render until you generate a new one
 - Installable PWA (manifest + service worker) for Add to Home Screen
 - Click the logo to hide/show the left HUD panel while tools stay open
-- If `SITE_ICON` is unset or fails to load, the HUD toggle falls back to a small “Map” badge.
 
 ## Project Structure
 - `backend/app.py`: FastAPI server wiring, MQTT lifecycle, WS broadcast

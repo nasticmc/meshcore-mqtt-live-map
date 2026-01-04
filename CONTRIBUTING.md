@@ -31,7 +31,6 @@ When adding UI controls:
 - Wire the toggle into `app.js`.
 - Add styles to `styles.css` (don’t inline).
 - Keep HUD layout stable on mobile (test at narrow widths).
-- If `SITE_ICON` is optional, include a text fallback for the HUD toggle.
 
 ## API Changes
 - Document new endpoints in `docs.md`.

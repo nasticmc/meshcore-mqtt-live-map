@@ -68,25 +68,6 @@
     const losPeaksMax = Number(config.losPeaksMax) || 4;
     const mqttOnlineSeconds = Number(config.mqttOnlineSeconds) || 300;
     const defaultDistanceUnits = config.distanceUnits || 'km';
-    const hudToggle = document.getElementById('hud-toggle');
-    const hudLogo = hudToggle ? hudToggle.querySelector('.hud-logo') : null;
-    const applyHudLogoFallback = () => {
-      if (hudToggle) {
-        hudToggle.classList.add('hud-toggle-fallback');
-      }
-      if (hudLogo && hudLogo.parentNode) {
-        hudLogo.parentNode.removeChild(hudLogo);
-      }
-    };
-    if (hudLogo) {
-      const siteIcon = String(hudLogo.dataset.siteIcon || '').trim();
-      if (!siteIcon) {
-        applyHudLogoFallback();
-      } else {
-        hudLogo.src = siteIcon;
-        hudLogo.addEventListener('error', applyHudLogoFallback, { once: true });
-      }
-    }
     const heatLayer = L.heatLayer([], {
       radius: 28,
       blur: 22,

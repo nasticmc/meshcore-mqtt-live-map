@@ -48,7 +48,6 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - Trail text in the HUD is only shown when `TRAIL_LEN > 0`; `TRAIL_LEN=0` disables trails entirely.
 - Hide Nodes toggle hides markers, trails, heat, routes, and history layers.
 - Heat toggle can hide the heatmap; it defaults on and the button turns green when heat is off.
-- HUD logo uses `SITE_ICON`; if unset or broken it falls back to a small “Map” badge so the toggle still works.
 - History line weight was reduced for improved readability.
 - Propagation overlay keeps heat/routes/trails/markers above it after render; the panel lives on the right and retains the last render until you generate a new one.
 - Heatmap includes all route payload types (adverts are no longer skipped).

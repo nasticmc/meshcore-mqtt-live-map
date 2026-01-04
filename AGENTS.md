@@ -62,7 +62,6 @@
 - Hide-nodes toggle hides markers, trails, heat, routes, and history layers.
 - Heat toggle hides the heatmap; it defaults on and the button turns green when heat is off.
 - History line weight was reduced for a lighter map overlay.
-- HUD logo uses `SITE_ICON`; if missing/invalid it falls back to a small "Map" badge to keep the toggle usable.
 - Route styling now keys off payload type: 2/5 = Message (blue), 8/9 = Trace (orange), 4 = Advert (green).
 - 24h route history persists to `data/route_history.jsonl`, renders as a volume heatline, and defaults off (toggle in HUD).
 - History records routes for `path`, `direct`, and `fanout` modes by default; adjust with `ROUTE_HISTORY_ALLOWED_MODES`.
