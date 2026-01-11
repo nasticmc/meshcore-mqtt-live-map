@@ -78,6 +78,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - Share button copies a URL with the current view + toggles (including HUD visibility).
 - Optional custom HUD link appears when `CUSTOM_LINK_URL` is set.
 - Update banner shows when `GIT_CHECK_ENABLED=true` and the repo is behind; users can dismiss it per remote SHA.
+- Update banner dismissal relies on `.hud-update[hidden]` to ensure the banner actually disappears.
 - URL params override stored settings: `lat`, `lon`/`lng`/`long`, `zoom`, `layer`, `history`, `heat`, `labels`, `nodes`, `legend`, `menu`, `units`, `history_filter`.
 - Service worker uses `no-store` for navigation requests so env-driven UI toggles (like the radius ring) update without clearing site data.
 

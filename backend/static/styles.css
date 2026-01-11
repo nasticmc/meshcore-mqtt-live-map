@@ -447,6 +447,12 @@
       gap: 8px;
       font-size: 12px;
       color: #fed7aa;
+      position: relative;
+      z-index: 2;
+      pointer-events: auto;
+    }
+    .hud-update[hidden] {
+      display: none !important;
     }
 
     .hud-update-text {
@@ -455,5 +461,6 @@
 
     .hud-update-dismiss {
       margin-top: 0;
+      pointer-events: auto;
     }
   

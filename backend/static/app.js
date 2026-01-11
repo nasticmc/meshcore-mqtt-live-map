@@ -3553,13 +3553,29 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         customLink.remove();
       }
     }
+    const dismissUpdateBanner = (ev, source = 'click') => {
+      if (!updateBanner || updateBanner.hidden) return;
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      const key = updateDismissKey || initialUpdateRemote || 'update';
+      try {
+        localStorage.setItem('meshmapUpdateDismissed', key);
+      } catch (err) {
+        // ignore storage failures
+      }
+      updateBanner.hidden = true;
+    };
+
     if (updateDismiss) {
-      updateDismiss.addEventListener('click', () => {
-        if (updateDismissKey) {
-          localStorage.setItem('meshmapUpdateDismissed', updateDismissKey);
-        }
-        if (updateBanner) updateBanner.hidden = true;
-      });
+      updateDismiss.addEventListener('click', (ev) => dismissUpdateBanner(ev, 'click'));
+      updateDismiss.addEventListener('pointerdown', (ev) => dismissUpdateBanner(ev, 'pointerdown'));
+      updateDismiss.addEventListener('touchend', (ev) => dismissUpdateBanner(ev, 'touchend'));
+    }
+    if (updateBanner) {
+      updateBanner.addEventListener('click', (ev) => dismissUpdateBanner(ev, 'banner-click'));
+      updateBanner.addEventListener('pointerdown', (ev) => dismissUpdateBanner(ev, 'banner-pointerdown'));
     }
     if (initialUpdateAvailable) {
       setUpdateBanner({

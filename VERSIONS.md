@@ -1,5 +1,9 @@
 # Versions
 
+## v1.0.2 (01-11-2026)
+- Fix update banner Hide action by honoring the hidden state in CSS
+- Remove update banner debug logging after verification
+
 ## v1.0.1 (01-11-2025)
 - Update check banner (git local vs upstream) with dismiss + auto recheck every 12 hours
 - Custom HUD link button (configurable via env, hidden when unset)
