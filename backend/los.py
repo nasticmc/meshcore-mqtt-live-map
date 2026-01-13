@@ -22,7 +22,8 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
   phi2 = math.radians(lat2)
   dphi = math.radians(lat2 - lat1)
   dlambda = math.radians(lon2 - lon1)
-  a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+  a = math.sin(
+    dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
   c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
   return radius * c
 
@@ -35,7 +36,9 @@ def _chunked(seq: List[Any], size: int) -> List[List[Any]]:
   return [seq[i:i + size] for i in range(0, len(seq), size)]
 
 
-def _fetch_elevations(points: List[Tuple[float, float, float]]) -> Tuple[Optional[List[float]], Optional[str]]:
+def _fetch_elevations(
+  points: List[Tuple[float, float, float]]
+) -> Tuple[Optional[List[float]], Optional[str]]:
   now = time.time()
   results: List[Optional[float]] = [None] * len(points)
   missing: List[Tuple[int, float, float, str]] = []
@@ -82,7 +85,8 @@ def _fetch_elevations(points: List[Tuple[float, float, float]]) -> Tuple[Optiona
   return [float(val) for val in results], None
 
 
-def _sample_los_points(lat1: float, lon1: float, lat2: float, lon2: float) -> List[Tuple[float, float, float]]:
+def _sample_los_points(lat1: float, lon1: float, lat2: float,
+                       lon2: float) -> List[Tuple[float, float, float]]:
   distance_m = _haversine_m(lat1, lon1, lat2, lon2)
   if distance_m <= 0:
     return [(lat1, lon1, 0.0), (lat2, lon2, 1.0)]
@@ -101,7 +105,9 @@ def _sample_los_points(lat1: float, lon1: float, lat2: float, lon2: float) -> Li
   return points
 
 
-def _los_max_obstruction(points: List[Tuple[float, float, float]], elevations: List[float], start_idx: int, end_idx: int) -> float:
+def _los_max_obstruction(points: List[Tuple[float, float,
+                                            float]], elevations: List[float],
+                         start_idx: int, end_idx: int) -> float:
   if end_idx <= start_idx + 1:
     return 0.0
   start_t = points[start_idx][2]
@@ -120,7 +126,8 @@ def _los_max_obstruction(points: List[Tuple[float, float, float]], elevations: L
   return max_obstruction
 
 
-def _find_los_suggestion(points: List[Tuple[float, float, float]], elevations: List[float]) -> Optional[Dict[str, Any]]:
+def _find_los_suggestion(points: List[Tuple[float, float, float]],
+                         elevations: List[float]) -> Optional[Dict[str, Any]]:
   if len(points) < 3:
     return None
   best_idx = None
@@ -146,11 +153,16 @@ def _find_los_suggestion(points: List[Tuple[float, float, float]], elevations: L
   if best_idx is None:
     return None
   return {
-    "lat": round(points[best_idx][0], 6),
-    "lon": round(points[best_idx][1], 6),
-    "elevation_m": round(float(elevations[best_idx]), 2),
-    "clear": best_clear,
-    "max_obstruction_m": round(float(best_score), 2) if best_score is not None else None,
+    "lat":
+      round(points[best_idx][0], 6),
+    "lon":
+      round(points[best_idx][1], 6),
+    "elevation_m":
+      round(float(elevations[best_idx]), 2),
+    "clear":
+      best_clear,
+    "max_obstruction_m":
+      round(float(best_score), 2) if best_score is not None else None,
   }
 
 
@@ -170,11 +182,15 @@ def _find_los_peaks(
 
   if not peak_indices:
     try:
-      peak_indices = [max(range(1, len(elevations) - 1), key=lambda i: elevations[i])]
+      peak_indices = [
+        max(range(1,
+                  len(elevations) - 1), key=lambda i: elevations[i])
+      ]
     except ValueError:
       return []
 
-  peak_indices = sorted(peak_indices, key=lambda i: elevations[i], reverse=True)[:LOS_PEAKS_MAX]
+  peak_indices = sorted(peak_indices, key=lambda i: elevations[i],
+                        reverse=True)[:LOS_PEAKS_MAX]
   peak_indices = sorted(peak_indices, key=lambda i: points[i][2])
 
   peaks = []

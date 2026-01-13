@@ -62,7 +62,10 @@ def _normalize_history_point(point: Any) -> Optional[Tuple[float, float]]:
   return (round(lat_val, 6), round(lon_val, 6))
 
 
-def _history_edge_key(a: Tuple[float, float], b: Tuple[float, float]) -> Tuple[str, Tuple[float, float], Tuple[float, float]]:
+def _history_edge_key(
+  a: Tuple[float, float],
+  b: Tuple[float,
+           float]) -> Tuple[str, Tuple[float, float], Tuple[float, float]]:
   if a <= b:
     key = f"{a[0]:.6f},{a[1]:.6f}|{b[0]:.6f},{b[1]:.6f}"
     return key, a, b
@@ -70,7 +73,8 @@ def _history_edge_key(a: Tuple[float, float], b: Tuple[float, float]) -> Tuple[s
   return key, b, a
 
 
-def _history_sample_from_route(route: Dict[str, Any], ts: float) -> Dict[str, Any]:
+def _history_sample_from_route(route: Dict[str, Any],
+                               ts: float) -> Dict[str, Any]:
   return {
     "ts": float(ts),
     "message_hash": route.get("message_hash"),
@@ -82,7 +86,8 @@ def _history_sample_from_route(route: Dict[str, Any], ts: float) -> Dict[str, An
   }
 
 
-def _update_history_edge_recent(edge: Dict[str, Any], sample: Dict[str, Any]) -> None:
+def _update_history_edge_recent(edge: Dict[str, Any],
+                                sample: Dict[str, Any]) -> None:
   if not edge or not sample:
     return
   recent = edge.get("recent")
@@ -95,7 +100,8 @@ def _update_history_edge_recent(edge: Dict[str, Any], sample: Dict[str, Any]) ->
   edge["recent"] = recent
 
 
-def _record_route_history(route: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[str]]:
+def _record_route_history(
+    route: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[str]]:
   if not ROUTE_HISTORY_ENABLED:
     return [], []
   if ROUTE_HISTORY_ALLOWED_MODES_SET:
@@ -106,7 +112,8 @@ def _record_route_history(route: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], 
   if not _history_payload_allowed(payload_type):
     return [], []
   points = route.get("points")
-  point_ids = route.get("point_ids") if isinstance(route.get("point_ids"), list) else None
+  point_ids = route.get("point_ids") if isinstance(route.get("point_ids"),
+                                                   list) else None
   if not isinstance(points, list) or len(points) < 2:
     return [], []
 
@@ -160,9 +167,14 @@ def _record_route_history(route: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], 
   state.route_history_segments.extend(new_entries)
   _append_route_history_file(new_entries)
 
-  updates = [state.route_history_edges[key] for key in updated_keys if key in state.route_history_edges]
+  updates = [
+    state.route_history_edges[key]
+    for key in updated_keys
+    if key in state.route_history_edges
+  ]
   removed: List[str] = []
-  if ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(state.route_history_segments) > ROUTE_HISTORY_MAX_SEGMENTS:
+  if ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(
+      state.route_history_segments) > ROUTE_HISTORY_MAX_SEGMENTS:
     extra_updates, extra_removed = _prune_route_history(force_limit=True)
     updates.extend(extra_updates)
     removed.extend(extra_removed)
@@ -170,7 +182,8 @@ def _record_route_history(route: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], 
   return updates, removed
 
 
-def _prune_route_history(force_limit: bool = False) -> Tuple[List[Dict[str, Any]], List[str]]:
+def _prune_route_history(
+    force_limit: bool = False) -> Tuple[List[Dict[str, Any]], List[str]]:
   if not ROUTE_HISTORY_ENABLED or not state.route_history_segments:
     return [], []
 
@@ -190,7 +203,8 @@ def _prune_route_history(force_limit: bool = False) -> Tuple[List[Dict[str, Any]
       continue
     if not force_limit and ts >= cutoff:
       break
-    if force_limit and ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(state.route_history_segments) <= ROUTE_HISTORY_MAX_SEGMENTS:
+    if force_limit and ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(
+        state.route_history_segments) <= ROUTE_HISTORY_MAX_SEGMENTS:
       break
     state.route_history_segments.popleft()
     a = entry.get("a")
@@ -311,7 +325,8 @@ def _load_route_history() -> None:
   if not loaded_any:
     return
 
-  if ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(state.route_history_segments) > ROUTE_HISTORY_MAX_SEGMENTS:
+  if ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(
+      state.route_history_segments) > ROUTE_HISTORY_MAX_SEGMENTS:
     _prune_route_history(force_limit=True)
     state.route_history_compact = True
 
