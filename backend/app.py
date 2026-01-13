@@ -1183,6 +1183,22 @@ def root(request: Request):
         safe_static_image = html.escape(str(SITE_OG_IMAGE), quote=True)
         og_image_tag += f'\n  <meta property="og:image:secure_url" content="{safe_static_image}" />'
 
+      # Update og:url to include query parameters
+      base_url = str(request.url).split('?')[0]
+      og_url = f"{base_url}?lat={lat}&lon={lon}"
+      if zoom_param:
+        og_url += f"&zoom={zoom}"
+    except (ValueError, TypeError):
+      # Invalid coordinates, fall back to static image
+      if SITE_OG_IMAGE:
+        safe_image = html.escape(str(SITE_OG_IMAGE), quote=True)
+        og_image_tag = f'<meta property="og:image" content="{safe_image}" />'
+        twitter_image_tag = f'<meta name="twitter:image" content="{safe_image}" />'
+  elif SITE_OG_IMAGE:
+    safe_image = html.escape(str(SITE_OG_IMAGE), quote=True)
+    og_image_tag = f'<meta property="og:image" content="{safe_image}" />'
+    twitter_image_tag = f'<meta name="twitter:image" content="{safe_image}" />'
+
   content = content.replace("{{OG_IMAGE_TAG}}", og_image_tag)
   content = content.replace("{{TWITTER_IMAGE_TAG}}", twitter_image_tag)
 
