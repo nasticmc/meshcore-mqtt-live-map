@@ -1152,7 +1152,7 @@ def root(request: Request):
 
       # Generate preview image URL pointing to our own server
       # Use absolute URL for better compatibility with Discord and other platforms
-      base_url = str(request.url).split('?')[0]
+      base_url = str(request.url).split('?')[0].rstrip("/")
       preview_params = urlencode({"lat": lat, "lon": lon, "zoom": zoom, "marker": "blue", "theme": "dark"})
       preview_url = f"{base_url}/preview.png?{preview_params}"
 
