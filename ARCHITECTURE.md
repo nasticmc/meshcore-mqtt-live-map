@@ -1,7 +1,7 @@
 # Architecture Guide
 
 This document explains how the Mesh Live Map codebase is organized and how the components interact.
-Current version: `1.0.6` (see `VERSIONS.md`).
+Current version: `1.0.7` (see `VERSIONS.md`).
 
 ## High-Level Overview
 
@@ -60,7 +60,8 @@ mesh-live-map-dev/
 ├── data/                   # Runtime state (created at first run)
 │   ├── state.json          # Persisted devices, trails, names
 │   ├── route_history.jsonl # Rolling route history
-│   └── device_roles.json   # Optional role overrides
+│   ├── device_roles.json   # Optional role overrides
+│   └── neighbor_overrides.json # Optional neighbor overrides
 ├── docker-compose.yaml     # Container orchestration
 ├── .env.example            # Configuration template
 ├── pyproject.toml          # Python tooling (ruff, pytest)
@@ -103,6 +104,7 @@ Loads all settings from environment variables with sensible defaults.
 **Key configuration groups:**
 - MQTT connection (`MQTT_HOST`, `MQTT_PORT`, `MQTT_TLS`, etc.)
 - State persistence (`STATE_DIR`, `STATE_SAVE_INTERVAL`)
+- Neighbor overrides (`NEIGHBOR_OVERRIDES_FILE`)
 - Device management (`DEVICE_TTL_SECONDS`, `TRAIL_LEN`)
 - Route handling (`ROUTE_TTL_SECONDS`, `ROUTE_HISTORY_HOURS`)
 - Map display (`MAP_START_LAT`, `MAP_START_LON`, `MAP_RADIUS_KM`)
@@ -119,6 +121,7 @@ routes: Dict[str, Dict]             # Active route visualizations
 heat_events: List[Dict]             # Recent activity points
 route_history_segments: List[Dict]  # 24h route history
 route_history_edges: Dict[str, Dict]# Aggregated edge counts
+neighbor_edges: Dict[str, Dict]     # Neighbor adjacency cache
 ```
 
 ### decoder.py (Packet Parsing)
@@ -355,4 +358,4 @@ npx eslint backend/static/app.js
 ```
 
 Versioning:
-- See `VERSIONS.md` for the changelog; `VERSION.txt` mirrors the latest entry (`1.0.6`).
+- See `VERSIONS.md` for the changelog; `VERSION.txt` mirrors the latest entry (`1.0.7`).

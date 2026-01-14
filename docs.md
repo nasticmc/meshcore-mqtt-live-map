@@ -1,13 +1,13 @@
 # Mesh Map Live: Implementation Notes
 
 This document captures the state of the project and the key changes made so far, so a new Codex session can pick up without losing context.
-Current version: `1.0.6` (see `VERSIONS.md`).
+Current version: `1.0.7` (see `VERSIONS.md`).
 
 ## Overview
 This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A FastAPI backend subscribes to MQTT (WSS/TLS), decodes MeshCore packets using `@michaelhart/meshcore-decoder`, and broadcasts device updates and routes over WebSockets to the frontend. Core logic is split into config/state/decoder/LOS/history modules so changes are localized. The UI includes heatmap, LOS tools, map mode toggles, and a 24‑hour route history layer.
 
 ## Versioning
-- `VERSION.txt` holds the current version string (`1.0.6`).
+- `VERSION.txt` holds the current version string (`1.0.7`).
 - `VERSIONS.md` is an append-only changelog by version.
 
 ## Key Paths
@@ -24,6 +24,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - `docker-compose.yaml`: runtime configuration.
 - `data/state.json`: persisted device/trail/roles/names (loaded at startup).
 - `data/route_history.jsonl`: rolling 24h route history segments (lines).
+- `data/neighbor_overrides.json`: optional neighbor override pairs for route disambiguation.
 - `.env`: dev configuration (mirrors template variables).
 
 ## Runtime Commands (Typical Workflow)
@@ -41,6 +42,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - `GIT_CHECK_INTERVAL_SECONDS` controls how often the server re-checks for updates.
 - `ROUTE_MAX_HOP_DISTANCE` prunes hops longer than the configured km distance.
 - `ROUTE_INFRA_ONLY` limits route lines to repeaters/rooms (companions excluded from routes).
+- `NEIGHBOR_OVERRIDES_FILE` points at an optional JSON file with neighbor pairs to resolve hash collisions.
 
 ## MQTT + Decoder
 - MQTT is **WebSockets + TLS** (`MQTT_TRANSPORT=websockets`, `MQTT_TLS=true`, `MQTT_WS_PATH=/` or `/mqtt`).
@@ -80,7 +82,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - `MQTT_ONLINE_FORCE_NAMES` can force named nodes to show as MQTT online regardless of last seen.
 - PWA install support is enabled via `/manifest.webmanifest` and a service worker at `/sw.js`.
 - Preview image (`/preview.png`) renders in-bounds device dots for shared links.
-- Route lines use closest-hop selection to reduce hash-collision noise and impossible jumps.
+- Route lines prefer known neighbor pairs (including overrides) before falling back to closest-hop selection.
 - Clicking the HUD logo hides/shows the left panel while tool panels stay open.
 - Share button copies a URL with the current view + toggles (including HUD visibility).
 - Optional custom HUD link appears when `CUSTOM_LINK_URL` is set.
@@ -114,7 +116,7 @@ Routes are drawn when:
 - A packet contains a path list (decoder `pathHashes` or `path`), or
 - Multiple observers see the same message hash (fanout), or
 - As a fallback, when one hash maps to a known device, a direct line is drawn to the receiver.
-When a hop hash collides, the backend skips it (unique-only); oversized path lists are ignored via `ROUTE_PATH_MAX_LEN`.
+When a hop hash collides, the backend prefers neighbor pairs (or overrides) before falling back to closest-hop selection; oversized path lists are ignored via `ROUTE_PATH_MAX_LEN`.
 
 ### 24h History Layer
 - Every route segment is persisted to `data/route_history.jsonl` and kept for the last `ROUTE_HISTORY_HOURS`.

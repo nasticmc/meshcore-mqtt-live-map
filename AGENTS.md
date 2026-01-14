@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Current version: `1.0.6` (see `VERSIONS.md`).
+Current version: `1.0.7` (see `VERSIONS.md`).
 
 ## Project Structure & Module Organization
 - `backend/app.py` wires FastAPI routes, MQTT lifecycle, and websocket broadcast flow.
@@ -15,9 +15,9 @@ Current version: `1.0.6` (see `VERSIONS.md`).
 - `backend/static/sw.js` is the PWA service worker.
 - `backend/requirements.txt` and `backend/Dockerfile` define Python and Node dependencies.
 - `docker-compose.yaml` runs the service as `meshmap-live`.
-- `data/` stores persisted state (`state.json`), route history (`route_history.jsonl`), and optional role overrides (`device_roles.json`).
+- `data/` stores persisted state (`state.json`), route history (`route_history.jsonl`), role overrides (`device_roles.json`), and optional neighbor overrides (`neighbor_overrides.json`).
 - `.env` holds dev runtime settings; `.env.example` mirrors template defaults.
-- `VERSION.txt` tracks the current version (now `1.0.6`); append changes in `VERSIONS.md`.
+- `VERSION.txt` tracks the current version (now `1.0.7`); append changes in `VERSIONS.md`.
 
 ## Build, Test, and Development Commands
 - `docker compose up -d --build` rebuilds and restarts the backend (preferred workflow).
@@ -49,6 +49,7 @@ Current version: `1.0.6` (see `VERSIONS.md`).
 - `MAP_RADIUS_SHOW=true` draws a debug circle centered on `MAP_START_LAT/LON`.
 - Set `TRAIL_LEN=0` to disable trails entirely; the HUD trail hint is removed when trails are off.
 - Coverage button only appears when `COVERAGE_API_URL` is set.
+- `NEIGHBOR_OVERRIDES_FILE` can point at a JSON map/list of neighbor pairs to resolve hash collisions.
 - Optional custom HUD link appears when `CUSTOM_LINK_URL` is set.
 - Update banner uses `GIT_CHECK_ENABLED` (compare local vs upstream) with `GIT_CHECK_PATH` pointing at a git repo.
 - `GIT_CHECK_FETCH` controls whether the server fetches before comparing; `GIT_CHECK_INTERVAL_SECONDS` sets the recheck interval.
@@ -61,8 +62,8 @@ Current version: `1.0.6` (see `VERSIONS.md`).
 ## Feature Notes
 - MQTT is WSS/TLS with meshcore-decoder in a Node helper for advert/location parsing.
 - Routes are rendered as trace/message/advert lines with TTL cleanup; 0,0 coords (including stringy zeros) are filtered from trails/routes.
-- Route hash collisions are ignored (unique-only mapping); long path lists are skipped via `ROUTE_PATH_MAX_LEN`.
-- Route collisions now select the closest candidate and can drop hops beyond `ROUTE_MAX_HOP_DISTANCE`.
+- Route hash collisions prefer known neighbors (and optional overrides); long path lists are skipped via `ROUTE_PATH_MAX_LEN`.
+- Route collisions fall back to closest-hop selection and drop hops beyond `ROUTE_MAX_HOP_DISTANCE`.
 - `ROUTE_INFRA_ONLY` restricts route lines to repeaters/rooms (companions still show as markers).
 - Heatmap shows recent traffic points (TTL controlled).
 - LOS tool runs **server-side only** via `/los`, returning the elevation profile + peaks.

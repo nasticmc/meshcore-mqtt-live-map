@@ -54,4 +54,5 @@ device_names: Dict[str, str] = {}
 message_origins: Dict[str, Dict[str, Any]] = {}
 device_roles: Dict[str, str] = {}
 device_role_sources: Dict[str, str] = {}
+neighbor_edges: Dict[str, Dict[str, Dict[str, Any]]] = {}
 state_dirty = False

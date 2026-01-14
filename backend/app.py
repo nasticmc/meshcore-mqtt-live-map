@@ -75,6 +75,7 @@ from config import (
   STATE_DIR,
   STATE_FILE,
   DEVICE_ROLES_FILE,
+  NEIGHBOR_OVERRIDES_FILE,
   STATE_SAVE_INTERVAL,
   DEVICE_TTL_SECONDS,
   TRAIL_LEN,
@@ -160,6 +161,7 @@ from state import (
   message_origins,
   device_roles,
   device_role_sources,
+  neighbor_edges,
 )
 
 # =========================
@@ -203,6 +205,96 @@ def _load_role_overrides() -> Dict[str, str]:
       continue
     roles[key.strip()] = role
   return roles
+
+
+def _load_neighbor_overrides() -> None:
+  if not NEIGHBOR_OVERRIDES_FILE or not os.path.exists(NEIGHBOR_OVERRIDES_FILE):
+    return
+  try:
+    with open(NEIGHBOR_OVERRIDES_FILE, "r", encoding="utf-8") as handle:
+      data = json.load(handle)
+  except Exception as exc:
+    print(f"[neighbors] failed to load {NEIGHBOR_OVERRIDES_FILE}: {exc}")
+    return
+  now = time.time()
+  added = 0
+
+  def _add_pair(src: str, dst: str) -> None:
+    nonlocal added
+    if not src or not dst or src == dst:
+      return
+    _touch_neighbor(src, dst, now, manual=True)
+    _touch_neighbor(dst, src, now, manual=True)
+    added += 1
+
+  if isinstance(data, dict):
+    for src, targets in data.items():
+      if not isinstance(src, str):
+        continue
+      if isinstance(targets, list):
+        for dst in targets:
+          if isinstance(dst, str):
+            _add_pair(src.strip(), dst.strip())
+      elif isinstance(targets, str):
+        _add_pair(src.strip(), targets.strip())
+  elif isinstance(data, list):
+    for item in data:
+      if (isinstance(item, (list, tuple)) and len(item) >= 2 and
+          isinstance(item[0], str) and isinstance(item[1], str)):
+        _add_pair(item[0].strip(), item[1].strip())
+      elif isinstance(item, dict):
+        src = item.get("from") or item.get("src") or item.get("a")
+        dst = item.get("to") or item.get("dst") or item.get("b")
+        if isinstance(src, str) and isinstance(dst, str):
+          _add_pair(src.strip(), dst.strip())
+
+  if added:
+    print(f"[neighbors] loaded {added} override pairs from {NEIGHBOR_OVERRIDES_FILE}")
+
+
+def _touch_neighbor(src_id: str,
+                    dst_id: str,
+                    ts: float,
+                    manual: bool = False) -> None:
+  if not src_id or not dst_id or src_id == dst_id:
+    return
+  neighbors = neighbor_edges.setdefault(src_id, {})
+  entry = neighbors.get(dst_id)
+  if entry is None:
+    entry = {"count": 0, "last_seen": 0.0, "manual": False}
+    neighbors[dst_id] = entry
+  if manual:
+    entry["manual"] = True
+  else:
+    entry["count"] = int(entry.get("count", 0)) + 1
+  entry["last_seen"] = max(float(entry.get("last_seen", 0.0)), float(ts))
+
+
+def _record_neighbors(point_ids: List[Optional[str]],
+                      ts: float) -> None:
+  if not point_ids or len(point_ids) < 2:
+    return
+  for idx in range(len(point_ids) - 1):
+    src_id = point_ids[idx]
+    dst_id = point_ids[idx + 1]
+    if not src_id or not dst_id or src_id == dst_id:
+      continue
+    _touch_neighbor(src_id, dst_id, ts, manual=False)
+    _touch_neighbor(dst_id, src_id, ts, manual=False)
+
+
+def _prune_neighbors(now: float) -> None:
+  if DEVICE_TTL_SECONDS <= 0 or not neighbor_edges:
+    return
+  cutoff = now - DEVICE_TTL_SECONDS
+  for src_id, edges in list(neighbor_edges.items()):
+    for dst_id, entry in list(edges.items()):
+      if entry.get("manual"):
+        continue
+      if entry.get("last_seen", 0.0) < cutoff:
+        edges.pop(dst_id, None)
+    if not edges:
+      neighbor_edges.pop(src_id, None)
 
 
 def _serialize_state() -> Dict[str, Any]:
@@ -1023,6 +1115,9 @@ async def broadcaster():
       _append_heat_points(points, route["ts"], event.get("payload_type"))
       routes[route_id] = route
 
+      if point_ids and used_hashes:
+        _record_neighbors(point_ids, route["ts"])
+
       history_updates, history_removed = _record_route_history(route)
 
       payload = {"type": "route", "route": _route_payload(route)}
@@ -1226,6 +1321,8 @@ async def reaper():
       for msg_hash, info in list(message_origins.items()):
         if now - info.get("ts", 0) > MESSAGE_ORIGIN_TTL_SECONDS:
           message_origins.pop(msg_hash, None)
+
+    _prune_neighbors(now)
 
     prune_after = (max(DEVICE_TTL_SECONDS *
                        3, 900) if DEVICE_TTL_SECONDS > 0 else 86400)
@@ -2138,6 +2235,7 @@ async def startup():
 
   _load_state()
   _load_route_history()
+  _load_neighbor_overrides()
   _ensure_node_decoder()
   _check_git_updates()
 

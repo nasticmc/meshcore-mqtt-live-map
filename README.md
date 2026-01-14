@@ -1,6 +1,6 @@
 # Mesh Live Map
 
-Version: `1.0.6` (see [VERSIONS.md](VERSIONS.md))
+Version: `1.0.7` (see [VERSIONS.md](VERSIONS.md))
 
 Live MeshCore traffic map that renders nodes, routes, and activity in real time on a Leaflet map. The backend subscribes to MQTT over WebSockets + TLS, decodes MeshCore packets with `@michaelhart/meshcore-decoder`, and streams updates to the browser via WebSockets.
 
@@ -32,7 +32,7 @@ Live example sites:
 - LOS tool with elevation profile + peak markers and hover sync (Shift+click or long‑press nodes)
 - Embeddable metadata (Open Graph/Twitter tags) driven by env vars
 - Preview image renders in-bounds device dots for shared links
-- Route pruning via closest-hop selection + max hop distance (configurable)
+- Route pruning via neighbor-aware closest-hop selection + max hop distance (configurable)
 - Propagation panel lives on the right and keeps the last render until you generate a new one (click an origin marker to remove it)
 - Installable PWA (manifest + service worker) for Add to Home Screen
 - Click the logo to hide/show the left HUD panel while tools stay open
@@ -76,6 +76,7 @@ Debugging:
 
 Storage + server:
 - `STATE_DIR` (persisted state path)
+- `NEIGHBOR_OVERRIDES_FILE` (optional JSON mapping for neighbor overrides)
 - `STATE_SAVE_INTERVAL` (seconds between state saves)
 - `WEB_PORT` (host port for the web UI)
 - `PROD_MODE` (true to require a token for API + WS)
@@ -183,7 +184,7 @@ Use it:
 - URL params override stored settings: `lat`, `lon`/`lng`/`long`, `zoom`, `layer`, `history`, `heat`, `labels`, `nodes`, `legend`, `menu`, `units`, `history_filter`.
 - Dark map also darkens node popups for readability.
 - Route styling uses payload type: 2/5 = Message (blue), 8/9 = Trace (orange), 4 = Advert (green).
-- If hop hashes collide, the backend picks the closest node and prunes hops beyond `ROUTE_MAX_HOP_DISTANCE`.
+- If hop hashes collide, the backend prefers known neighbors (or overrides) before picking the closest hop and pruning beyond `ROUTE_MAX_HOP_DISTANCE`.
 - Coordinates at `0,0` (including string values) are filtered from devices, trails, and routes.
 
 ## API

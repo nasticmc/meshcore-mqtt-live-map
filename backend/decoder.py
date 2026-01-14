@@ -28,6 +28,7 @@ from state import (
   node_hash_candidates,
   node_hash_collisions,
   node_hash_to_device,
+  neighbor_edges,
   seen_devices,
 )
 from los import _haversine_m
@@ -363,6 +364,55 @@ def _choose_device_for_hash(node_hash: str, ts: float) -> Optional[str]:
   return best_id
 
 
+def _choose_neighbor_device(
+  prev_id: str,
+  candidates: List[str],
+  ref_lat: float,
+  ref_lon: float,
+  ts: float,
+) -> Optional[str]:
+  edges = neighbor_edges.get(prev_id) if prev_id else None
+  if not edges:
+    return None
+  best_id = None
+  best_score = None
+  for device_id in candidates:
+    edge = edges.get(device_id)
+    if not edge:
+      continue
+    state = devices.get(device_id)
+    if not state:
+      continue
+
+    # If infrastructure-only mode is active, only allow repeaters and rooms
+    if ROUTE_INFRA_ONLY and (not state.role or
+                             state.role not in ("repeater", "room")):
+      continue
+
+    if _coords_are_zero(state.lat, state.lon):
+      continue
+
+    try:
+      s_lat = float(state.lat)
+      s_lon = float(state.lon)
+    except (TypeError, ValueError):
+      continue
+
+    dist = _haversine_m(ref_lat, ref_lon, s_lat, s_lon)
+    if dist > (ROUTE_MAX_HOP_DISTANCE * 1000.0):
+      continue
+
+    manual = bool(edge.get("manual"))
+    count = int(edge.get("count", 0) or 0)
+    last_seen = float(edge.get("last_seen", 0.0) or 0.0)
+    score = (1 if manual else 0, count, last_seen)
+    if best_score is None or score > best_score:
+      best_score = score
+      best_id = device_id
+
+  return best_id
+
+
 def _route_points_from_hashes(
   path_hashes: List[Any],
   origin_id: Optional[str],
@@ -398,6 +448,7 @@ def _route_points_from_hashes(
   # Best bet is the origin, if known.
   current_lat = None
   current_lon = None
+  current_id: Optional[str] = None
 
   if origin_id:
     origin_state = devices.get(origin_id)
@@ -406,15 +457,37 @@ def _route_points_from_hashes(
       try:
         current_lat = float(origin_state.lat)
         current_lon = float(origin_state.lon)
+        current_id = origin_id
       except (TypeError, ValueError):
         pass
 
   # Build the path
   for key in normalized:
+    device_id = None
+    candidates = node_hash_candidates.get(key) or []
+
+    if current_id and current_lat is not None and current_lon is not None:
+      if len(candidates) > 1:
+        neighbor_id = _choose_neighbor_device(
+          current_id,
+          candidates,
+          current_lat,
+          current_lon,
+          ts,
+        )
+        if neighbor_id:
+          device_id = neighbor_id
+          edge = neighbor_edges.get(current_id, {}).get(neighbor_id, {})
+          manual = " manual" if edge.get("manual") else ""
+          print(
+            f"[route] neighbor pick{manual} hash={key} {current_id[:8]} -> {neighbor_id[:8]}"
+          )
+
     # If we have a location fix, try to find the "closest" candidate for this hash
-    if current_lat is not None and current_lon is not None:
+    if not device_id and current_lat is not None and current_lon is not None:
       device_id = _choose_closest_device(key, current_lat, current_lon, ts)
-    else:
+
+    if not device_id:
       # Fallback to older time-based logic or just picking first valid
       device_id = _choose_device_for_hash(key, ts)
       if not device_id:
@@ -440,6 +513,7 @@ def _route_points_from_hashes(
     # Update our "current" reference for the next hop
     current_lat = p_lat
     current_lon = p_lon
+    current_id = device_id
 
     if points and point == points[-1]:
       continue
