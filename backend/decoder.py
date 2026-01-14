@@ -519,6 +519,12 @@ def _route_points_from_hashes(
     except (TypeError, ValueError):
       continue
 
+    # Safety check: enforce max distance even for fallback selections
+    if current_lat is not None and current_lon is not None:
+      dist = _haversine_m(current_lat, current_lon, p_lat, p_lon)
+      if dist > (ROUTE_MAX_HOP_DISTANCE * 1000.0):
+        continue
+
     point = [p_lat, p_lon]
     # Update our "current" reference for the next hop
     current_lat = p_lat
