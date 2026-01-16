@@ -286,8 +286,9 @@ def _rebuild_node_hash_map() -> None:
   node_hash_to_device.update(mapping)
 
 
-def _choose_closest_device(node_hash: str, ref_lat: float, ref_lon: float,
-                           ts: float) -> Optional[str]:
+def _choose_closest_device(
+  node_hash: str, ref_lat: float, ref_lon: float, ts: float
+) -> Optional[str]:
   """
     If we have multiple candidates for a hash, pick the one physically closest
     to (ref_lat, ref_lon). If only one, return it.
@@ -304,8 +305,9 @@ def _choose_closest_device(node_hash: str, ref_lat: float, ref_lon: float,
       continue
 
     # If infrastructure-only mode is active, only allow repeaters and rooms
-    if ROUTE_INFRA_ONLY and (not state.role or
-                             state.role not in ("repeater", "room")):
+    if ROUTE_INFRA_ONLY and (
+      not state.role or state.role not in ("repeater", "room")
+    ):
       continue
 
     # skip invalid coords
@@ -345,8 +347,9 @@ def _choose_device_for_hash(node_hash: str, ts: float) -> Optional[str]:
       continue
 
     # If infrastructure-only mode is active, only allow repeaters and rooms
-    if ROUTE_INFRA_ONLY and (not state.role or
-                             state.role not in ("repeater", "room")):
+    if ROUTE_INFRA_ONLY and (
+      not state.role or state.role not in ("repeater", "room")
+    ):
       continue
 
     if _coords_are_zero(state.lat, state.lon):
@@ -385,8 +388,9 @@ def _choose_neighbor_device(
       continue
 
     # If infrastructure-only mode is active, only allow repeaters and rooms
-    if ROUTE_INFRA_ONLY and (not state.role or
-                             state.role not in ("repeater", "room")):
+    if ROUTE_INFRA_ONLY and (
+      not state.role or state.role not in ("repeater", "room")
+    ):
       continue
 
     if _coords_are_zero(state.lat, state.lon):
@@ -428,16 +432,21 @@ def _route_points_from_hashes(
     return None, [], []
 
   receiver_hash = _node_hash_from_device_id(
-    receiver_id) if receiver_id else None
+    receiver_id
+  ) if receiver_id else None
   origin_hash = _node_hash_from_device_id(origin_id) if origin_id else None
 
   if receiver_hash and receiver_hash in normalized:
-    if (normalized and normalized[0] == receiver_hash and
-        normalized[-1] != receiver_hash):
+    if (
+      normalized and normalized[0] == receiver_hash and
+      normalized[-1] != receiver_hash
+    ):
       normalized.reverse()
   elif origin_hash and origin_hash in normalized:
-    if (normalized and normalized[-1] == origin_hash and
-        normalized[0] != origin_hash):
+    if (
+      normalized and normalized[-1] == origin_hash and
+      normalized[0] != origin_hash
+    ):
       normalized.reverse()
 
   points: List[List[float]] = []
@@ -452,8 +461,9 @@ def _route_points_from_hashes(
 
   if origin_id:
     origin_state = devices.get(origin_id)
-    if origin_state and not _coords_are_zero(origin_state.lat,
-                                             origin_state.lon):
+    if origin_state and not _coords_are_zero(
+      origin_state.lat, origin_state.lon
+    ):
       try:
         current_lat = float(origin_state.lat)
         current_lon = float(origin_state.lon)
@@ -509,6 +519,7 @@ def _route_points_from_hashes(
     except (TypeError, ValueError):
       continue
 
+    # Safety check: enforce max distance even for fallback selections
     if current_lat is not None and current_lon is not None:
       dist = _haversine_m(current_lat, current_lon, p_lat, p_lon)
       if dist > (ROUTE_MAX_HOP_DISTANCE * 1000.0):
@@ -531,11 +542,13 @@ def _route_points_from_hashes(
   origin_point = None
   if origin_id:
     origin_state = devices.get(origin_id)
-    if origin_state and not _coords_are_zero(origin_state.lat,
-                                             origin_state.lon):
+    if origin_state and not _coords_are_zero(
+      origin_state.lat, origin_state.lon
+    ):
       # If infrastructure-only, only add infra nodes
-      if ROUTE_INFRA_ONLY and (not origin_state.role or
-                               origin_state.role not in ("repeater", "room")):
+      if ROUTE_INFRA_ONLY and (
+        not origin_state.role or origin_state.role not in ("repeater", "room")
+      ):
         pass  # skip
       else:
         try:
@@ -552,11 +565,14 @@ def _route_points_from_hashes(
   receiver_point = None
   if receiver_id:
     receiver_state = devices.get(receiver_id)
-    if receiver_state and not _coords_are_zero(receiver_state.lat,
-                                               receiver_state.lon):
+    if receiver_state and not _coords_are_zero(
+      receiver_state.lat, receiver_state.lon
+    ):
       # If infrastructure-only, only add infra nodes
-      if ROUTE_INFRA_ONLY and (not receiver_state.role or
-                               receiver_state.role not in ("repeater", "room")):
+      if ROUTE_INFRA_ONLY and (
+        not receiver_state.role or
+        receiver_state.role not in ("repeater", "room")
+      ):
         pass  # skip
       else:
         try:
@@ -582,8 +598,8 @@ def _route_points_from_hashes(
 
 
 def _route_points_from_device_ids(
-    origin_id: Optional[str],
-    receiver_id: Optional[str]) -> Optional[List[List[float]]]:
+  origin_id: Optional[str], receiver_id: Optional[str]
+) -> Optional[List[List[float]]]:
   if not origin_id or not receiver_id or origin_id == receiver_id:
     return None
   origin_state = devices.get(origin_id)
@@ -594,12 +610,16 @@ def _route_points_from_device_ids(
   # If infrastructure-only mode is active, only allow repeaters and rooms
   if ROUTE_INFRA_ONLY and (
     (not origin_state.role or origin_state.role not in ("repeater", "room")) or
-    (not receiver_state.role or
-     receiver_state.role not in ("repeater", "room"))):
+    (
+      not receiver_state.role or
+      receiver_state.role not in ("repeater", "room")
+    )
+  ):
     return None
 
   if _coords_are_zero(origin_state.lat, origin_state.lon) or _coords_are_zero(
-      receiver_state.lat, receiver_state.lon):
+    receiver_state.lat, receiver_state.lon
+  ):
     return None
   points = [
     [origin_state.lat, origin_state.lon],
@@ -613,29 +633,34 @@ def _route_points_from_device_ids(
   return points
 
 
-def _append_heat_points(points: List[List[float]], ts: float,
-                        payload_type: Optional[int]) -> None:
+def _append_heat_points(
+  points: List[List[float]], ts: float, payload_type: Optional[int]
+) -> None:
   if HEAT_TTL_SECONDS <= 0:
     return
   for point in points:
-    heat_events.append({
-      "lat": float(point[0]),
-      "lon": float(point[1]),
-      "ts": float(ts),
-      "weight": 0.7,
-    })
+    heat_events.append(
+      {
+        "lat": float(point[0]),
+        "lon": float(point[1]),
+        "ts": float(ts),
+        "weight": 0.7,
+      }
+    )
 
 
 def _serialize_heat_events() -> List[List[float]]:
   if HEAT_TTL_SECONDS <= 0:
     return []
   cutoff = time.time() - HEAT_TTL_SECONDS
-  return [[
-    entry.get("lat"),
-    entry.get("lon"),
-    entry.get("ts"),
-    entry.get("weight", 0.7)
-  ] for entry in heat_events if entry.get("ts", 0) >= cutoff]
+  return [
+    [
+      entry.get("lat"),
+      entry.get("lon"),
+      entry.get("ts"),
+      entry.get("weight", 0.7)
+    ] for entry in heat_events if entry.get("ts", 0) >= cutoff
+  ]
 
 
 def _extract_device_name(obj: Any, topic: str) -> Optional[str]:
@@ -643,15 +668,15 @@ def _extract_device_name(obj: Any, topic: str) -> Optional[str]:
     return None
 
   for key in (
-      "name",
-      "device_name",
-      "deviceName",
-      "node_name",
-      "nodeName",
-      "display_name",
-      "displayName",
-      "callsign",
-      "label",
+    "name",
+    "device_name",
+    "deviceName",
+    "node_name",
+    "nodeName",
+    "display_name",
+    "displayName",
+    "callsign",
+    "label",
   ):
     value = obj.get(key)
     if isinstance(value, str) and value.strip():
@@ -683,17 +708,17 @@ def _extract_device_role(obj: Any, topic: str) -> Optional[str]:
     return None
 
   for key in (
-      "role",
-      "device_role",
-      "deviceRole",
-      "node_role",
-      "nodeRole",
-      "node_type",
-      "nodeType",
-      "device_type",
-      "deviceType",
-      "class",
-      "profile",
+    "role",
+    "device_role",
+    "deviceRole",
+    "node_role",
+    "nodeRole",
+    "node_type",
+    "nodeType",
+    "device_type",
+    "deviceType",
+    "class",
+    "profile",
   ):
     value = obj.get(key)
     if isinstance(value, str):
@@ -704,8 +729,9 @@ def _extract_device_role(obj: Any, topic: str) -> Optional[str]:
   return None
 
 
-def _apply_meta_role(debug: Dict[str, Any], meta: Optional[Dict[str,
-                                                                Any]]) -> None:
+def _apply_meta_role(
+  debug: Dict[str, Any], meta: Optional[Dict[str, Any]]
+) -> None:
   if debug.get("device_role"):
     return
   if not isinstance(meta, dict):
@@ -731,14 +757,14 @@ def _has_location_hints(obj: Any) -> bool:
     for k, v in obj.items():
       key = str(k).lower()
       if key in (
-          "location",
-          "gps",
-          "position",
-          "coords",
-          "coordinate",
-          "geo",
-          "geolocation",
-          "latlon",
+        "location",
+        "gps",
+        "position",
+        "coords",
+        "coordinate",
+        "geo",
+        "geolocation",
+        "latlon",
       ):
         return True
       if isinstance(v, (dict, list)) and _has_location_hints(v):
@@ -926,7 +952,7 @@ try {
 def _decode_meshcore_hex(
   hex_str: str,
 ) -> Tuple[Optional[float], Optional[float], Optional[str], Optional[str], Dict[
-    str, Any]]:
+  str, Any]]:
   if not _ensure_node_decoder():
     return (
       None,
@@ -952,10 +978,12 @@ def _decode_meshcore_hex(
 
   out = (proc.stdout or "").strip()
   if not out:
-    return (None, None, None, None, {
-      "ok": False,
-      "error": "empty_decoder_output"
-    })
+    return (
+      None, None, None, None, {
+        "ok": False,
+        "error": "empty_decoder_output"
+      }
+    )
 
   try:
     data = json.loads(out)
@@ -1013,8 +1041,9 @@ def _device_id_from_topic(topic: str) -> Optional[str]:
 
 
 def _find_packet_blob(
-    obj: Any,
-    path: str = "root") -> Tuple[Optional[str], Optional[str], Optional[str]]:
+  obj: Any,
+  path: str = "root"
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
   if isinstance(obj, str):
     if _looks_like_hex(obj):
       return (obj.strip(), path, "hex")
@@ -1050,8 +1079,10 @@ def _find_packet_blob(
         b64hex = _try_base64_to_hex(v)
         if b64hex:
           return (b64hex, sub_path, "base64")
-      if (isinstance(v, list) and v and
-          all(isinstance(x, int) for x in v[:min(20, len(v))])):
+      if (
+        isinstance(v, list) and v and
+        all(isinstance(x, int) for x in v[:min(20, len(v))])
+      ):
         try:
           raw = bytes(v)
           if len(raw) >= 10:
@@ -1066,13 +1097,16 @@ def _find_packet_blob(
   return (None, None, None)
 
 
-def _extract_device_id(obj: Any, topic: str,
-                       decoded_pubkey: Optional[str]) -> str:
+def _extract_device_id(
+  obj: Any, topic: str, decoded_pubkey: Optional[str]
+) -> str:
   if decoded_pubkey:
     return str(decoded_pubkey)
   if isinstance(obj, dict):
-    device_id = (obj.get("device_id") or obj.get("id") or obj.get("from") or
-                 obj.get("origin_id"))
+    device_id = (
+      obj.get("device_id") or obj.get("id") or obj.get("from") or
+      obj.get("origin_id")
+    )
     if device_id:
       return str(device_id)
     jwt = obj.get("jwt_payload")
@@ -1082,8 +1116,8 @@ def _extract_device_id(obj: Any, topic: str,
 
 
 def _try_parse_payload(
-    topic: str,
-    payload_bytes: bytes) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+  topic: str, payload_bytes: bytes
+) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
   debug: Dict[str, Any] = {
     "result": "no_coords",
     "found_path": None,
@@ -1116,10 +1150,12 @@ def _try_parse_payload(
         debug["device_name"] = _extract_device_name(obj, topic)
         debug["device_role"] = _extract_device_role(obj, topic)
         debug["direction"] = obj.get("direction")
-        debug["packet_hash"] = (obj.get("hash") or obj.get("message_hash") or
-                                obj.get("messageHash"))
-        debug["packet_type"] = (obj.get("packet_type") or
-                                obj.get("packetType") or obj.get("type"))
+        debug["packet_hash"] = (
+          obj.get("hash") or obj.get("message_hash") or obj.get("messageHash")
+        )
+        debug["packet_type"] = (
+          obj.get("packet_type") or obj.get("packetType") or obj.get("type")
+        )
     except Exception as exc:
       debug["parse_error"] = str(exc)
 
@@ -1184,7 +1220,8 @@ def _try_parse_payload(
             debug["result"] = "direct_blocked"
             return (None, debug)
           if not DIRECT_COORDS_ALLOW_ZERO and _coords_are_zero(
-              got2[0], got2[1]):
+            got2[0], got2[1]
+          ):
             debug["result"] = "direct_zero_coords"
             return (None, debug)
           device_id = _extract_device_id(obj, topic, None)
@@ -1224,8 +1261,9 @@ def _try_parse_payload(
           },
           debug,
         )
-      debug["result"] = ("decoded_no_location"
-                         if meta.get("ok") else "decode_failed")
+      debug["result"] = (
+        "decoded_no_location" if meta.get("ok") else "decode_failed"
+      )
       return (None, debug)
 
     debug["result"] = "json_no_packet_blob"
@@ -1272,8 +1310,9 @@ def _try_parse_payload(
           },
           debug,
         )
-      debug["result"] = ("decoded_no_location"
-                         if meta.get("ok") else "decode_failed")
+      debug["result"] = (
+        "decoded_no_location" if meta.get("ok") else "decode_failed"
+      )
       return (None, debug)
 
     b64hex = _try_base64_to_hex(text)
@@ -1297,15 +1336,17 @@ def _try_parse_payload(
           },
           debug,
         )
-      debug["result"] = ("decoded_no_location"
-                         if meta.get("ok") else "decode_failed")
+      debug["result"] = (
+        "decoded_no_location" if meta.get("ok") else "decode_failed"
+      )
       return (None, debug)
 
   if _is_probably_binary(payload_bytes) and len(payload_bytes) >= 10:
     debug["found_path"] = "payload_bytes"
     debug["found_hint"] = "raw_bytes"
     lat, lon, decoded_pubkey, name, meta = _decode_meshcore_hex(
-      payload_bytes.hex())
+      payload_bytes.hex()
+    )
     debug["decoded_pubkey"] = decoded_pubkey
     debug["decoder_meta"] = meta
     _apply_meta_role(debug, meta)
@@ -1323,7 +1364,8 @@ def _try_parse_payload(
         debug,
       )
     debug["result"] = "decoded_no_location" if meta.get(
-      "ok") else "decode_failed"
+      "ok"
+    ) else "decode_failed"
     return (None, debug)
 
   return (None, debug)

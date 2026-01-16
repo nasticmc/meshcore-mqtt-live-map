@@ -63,9 +63,8 @@ def _normalize_history_point(point: Any) -> Optional[Tuple[float, float]]:
 
 
 def _history_edge_key(
-  a: Tuple[float, float],
-  b: Tuple[float,
-           float]) -> Tuple[str, Tuple[float, float], Tuple[float, float]]:
+  a: Tuple[float, float], b: Tuple[float, float]
+) -> Tuple[str, Tuple[float, float], Tuple[float, float]]:
   if a <= b:
     key = f"{a[0]:.6f},{a[1]:.6f}|{b[0]:.6f},{b[1]:.6f}"
     return key, a, b
@@ -86,8 +85,9 @@ def _history_sample_from_route(route: Dict[str, Any],
   }
 
 
-def _update_history_edge_recent(edge: Dict[str, Any],
-                                sample: Dict[str, Any]) -> None:
+def _update_history_edge_recent(
+  edge: Dict[str, Any], sample: Dict[str, Any]
+) -> None:
   if not edge or not sample:
     return
   recent = edge.get("recent")
@@ -101,7 +101,8 @@ def _update_history_edge_recent(edge: Dict[str, Any],
 
 
 def _record_route_history(
-    route: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[str]]:
+  route: Dict[str, Any]
+) -> Tuple[List[Dict[str, Any]], List[str]]:
   if not ROUTE_HISTORY_ENABLED:
     return [], []
   if ROUTE_HISTORY_ALLOWED_MODES_SET:
@@ -112,8 +113,8 @@ def _record_route_history(
   if not _history_payload_allowed(payload_type):
     return [], []
   points = route.get("points")
-  point_ids = route.get("point_ids") if isinstance(route.get("point_ids"),
-                                                   list) else None
+  point_ids = route.get("point_ids"
+                       ) if isinstance(route.get("point_ids"), list) else None
   if not isinstance(points, list) or len(points) < 2:
     return [], []
 
@@ -133,19 +134,21 @@ def _record_route_history(
       a_id = point_ids[idx]
       b_id = point_ids[idx + 1]
     key, first, second = _history_edge_key(a, b)
-    new_entries.append({
-      "ts": float(ts),
-      "a": [first[0], first[1]],
-      "b": [second[0], second[1]],
-      "a_id": a_id,
-      "b_id": b_id,
-      "message_hash": sample.get("message_hash"),
-      "payload_type": sample.get("payload_type"),
-      "origin_id": sample.get("origin_id"),
-      "receiver_id": sample.get("receiver_id"),
-      "route_mode": sample.get("route_mode"),
-      "topic": sample.get("topic"),
-    })
+    new_entries.append(
+      {
+        "ts": float(ts),
+        "a": [first[0], first[1]],
+        "b": [second[0], second[1]],
+        "a_id": a_id,
+        "b_id": b_id,
+        "message_hash": sample.get("message_hash"),
+        "payload_type": sample.get("payload_type"),
+        "origin_id": sample.get("origin_id"),
+        "receiver_id": sample.get("receiver_id"),
+        "route_mode": sample.get("route_mode"),
+        "topic": sample.get("topic"),
+      }
+    )
     edge = state.route_history_edges.get(key)
     if not edge:
       edge = {
@@ -169,12 +172,12 @@ def _record_route_history(
 
   updates = [
     state.route_history_edges[key]
-    for key in updated_keys
-    if key in state.route_history_edges
+    for key in updated_keys if key in state.route_history_edges
   ]
   removed: List[str] = []
   if ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(
-      state.route_history_segments) > ROUTE_HISTORY_MAX_SEGMENTS:
+    state.route_history_segments
+  ) > ROUTE_HISTORY_MAX_SEGMENTS:
     extra_updates, extra_removed = _prune_route_history(force_limit=True)
     updates.extend(extra_updates)
     removed.extend(extra_removed)
@@ -183,7 +186,8 @@ def _record_route_history(
 
 
 def _prune_route_history(
-    force_limit: bool = False) -> Tuple[List[Dict[str, Any]], List[str]]:
+  force_limit: bool = False
+) -> Tuple[List[Dict[str, Any]], List[str]]:
   if not ROUTE_HISTORY_ENABLED or not state.route_history_segments:
     return [], []
 
@@ -204,7 +208,8 @@ def _prune_route_history(
     if not force_limit and ts >= cutoff:
       break
     if force_limit and ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(
-        state.route_history_segments) <= ROUTE_HISTORY_MAX_SEGMENTS:
+      state.route_history_segments
+    ) <= ROUTE_HISTORY_MAX_SEGMENTS:
       break
     state.route_history_segments.popleft()
     a = entry.get("a")
@@ -291,19 +296,21 @@ def _load_route_history() -> None:
           "topic": entry.get("topic"),
         }
         key, first, second = _history_edge_key(a_point, b_point)
-        state.route_history_segments.append({
-          "ts": float(ts),
-          "a": [first[0], first[1]],
-          "b": [second[0], second[1]],
-          "a_id": entry.get("a_id"),
-          "b_id": entry.get("b_id"),
-          "message_hash": sample.get("message_hash"),
-          "payload_type": sample.get("payload_type"),
-          "origin_id": sample.get("origin_id"),
-          "receiver_id": sample.get("receiver_id"),
-          "route_mode": sample.get("route_mode"),
-          "topic": sample.get("topic"),
-        })
+        state.route_history_segments.append(
+          {
+            "ts": float(ts),
+            "a": [first[0], first[1]],
+            "b": [second[0], second[1]],
+            "a_id": entry.get("a_id"),
+            "b_id": entry.get("b_id"),
+            "message_hash": sample.get("message_hash"),
+            "payload_type": sample.get("payload_type"),
+            "origin_id": sample.get("origin_id"),
+            "receiver_id": sample.get("receiver_id"),
+            "route_mode": sample.get("route_mode"),
+            "topic": sample.get("topic"),
+          }
+        )
         edge = state.route_history_edges.get(key)
         if not edge:
           edge = {
@@ -326,7 +333,8 @@ def _load_route_history() -> None:
     return
 
   if ROUTE_HISTORY_MAX_SEGMENTS > 0 and len(
-      state.route_history_segments) > ROUTE_HISTORY_MAX_SEGMENTS:
+    state.route_history_segments
+  ) > ROUTE_HISTORY_MAX_SEGMENTS:
     _prune_route_history(force_limit=True)
     state.route_history_compact = True
 

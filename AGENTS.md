@@ -28,6 +28,9 @@ Current version: `1.0.8` (see `VERSIONS.md`).
 
 ## Coding Style & Naming Conventions
 - Python in `backend/*.py` uses **2-space indentation**; keep it consistent.
+- The project enforces an **80-character column limit** for Python code to maintain readability.
+- Formatting is handled by `yapf` using the config in `backend/.style.yapf`.
+  - To format code manually: `yapf --in-place --recursive --style backend/.style.yapf backend/`
 - HTML/CSS/JS in `backend/static/index.html` uses 2 spaces as well.
 - Use lowercase, underscore-separated names for Python variables/functions.
 - Prefer small helper functions for parsing/normalization; keep logging concise.

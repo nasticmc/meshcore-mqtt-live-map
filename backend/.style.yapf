@@ -1,5 +1,6 @@
 [style]
 based_on_style = facebook
 indent_width = 2
-column_limit = 200
+column_limit = 80
 continuation_indent_width = 2
+

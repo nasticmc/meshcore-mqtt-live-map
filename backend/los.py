@@ -22,8 +22,8 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
   phi2 = math.radians(lat2)
   dphi = math.radians(lat2 - lat1)
   dlambda = math.radians(lon2 - lon1)
-  a = math.sin(
-    dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
+  a = math.sin(dphi / 2
+              )**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
   c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
   return radius * c
 
@@ -105,9 +105,10 @@ def _sample_los_points(lat1: float, lon1: float, lat2: float,
   return points
 
 
-def _los_max_obstruction(points: List[Tuple[float, float,
-                                            float]], elevations: List[float],
-                         start_idx: int, end_idx: int) -> float:
+def _los_max_obstruction(
+  points: List[Tuple[float, float, float]], elevations: List[float],
+  start_idx: int, end_idx: int
+) -> float:
   if end_idx <= start_idx + 1:
     return 0.0
   start_t = points[start_idx][2]
@@ -126,8 +127,9 @@ def _los_max_obstruction(points: List[Tuple[float, float,
   return max_obstruction
 
 
-def _find_los_suggestion(points: List[Tuple[float, float, float]],
-                         elevations: List[float]) -> Optional[Dict[str, Any]]:
+def _find_los_suggestion(
+  points: List[Tuple[float, float, float]], elevations: List[float]
+) -> Optional[Dict[str, Any]]:
   if len(points) < 3:
     return None
   best_idx = None
@@ -189,18 +191,21 @@ def _find_los_peaks(
     except ValueError:
       return []
 
-  peak_indices = sorted(peak_indices, key=lambda i: elevations[i],
-                        reverse=True)[:LOS_PEAKS_MAX]
+  peak_indices = sorted(
+    peak_indices, key=lambda i: elevations[i], reverse=True
+  )[:LOS_PEAKS_MAX]
   peak_indices = sorted(peak_indices, key=lambda i: points[i][2])
 
   peaks = []
   for i, idx in enumerate(peak_indices, start=1):
     t = points[idx][2]
-    peaks.append({
-      "index": i,
-      "lat": round(points[idx][0], 6),
-      "lon": round(points[idx][1], 6),
-      "elevation_m": round(float(elevations[idx]), 2),
-      "distance_m": round(distance_m * t, 2),
-    })
+    peaks.append(
+      {
+        "index": i,
+        "lat": round(points[idx][0], 6),
+        "lon": round(points[idx][1], 6),
+        "elevation_m": round(float(elevations[idx]), 2),
+        "distance_m": round(distance_m * t, 2),
+      }
+    )
   return peaks
