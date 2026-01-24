@@ -3351,6 +3351,22 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       }
     }
 
+    function hashFirstByteLabel(hash) {
+      if (!hash) return null;
+      const text = String(hash).trim();
+      if (!text) return null;
+      const maybeHex = text.slice(0, 2);
+      const hexVal = Number.parseInt(maybeHex, 16);
+      if (!Number.isNaN(hexVal)) {
+        return `0x${maybeHex.toUpperCase()} (${hexVal})`;
+      }
+      const firstChar = text.charCodeAt(0);
+      if (Number.isFinite(firstChar)) {
+        return `0x${firstChar.toString(16).padStart(2, '0').toUpperCase()} (${firstChar})`;
+      }
+      return text.slice(0, 4);
+    }
+
     function buildRouteLogMeta(route) {
       if (!route || !Array.isArray(route.points)) return null;
       const hopCount = Math.max(0, route.points.length - 1);
@@ -3359,6 +3375,36 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       const expiresInSeconds = Number.isFinite(expiresSeconds)
         ? (expiresSeconds - Date.now() / 1000)
         : null;
+      let cumulative = 0;
+      const hashes = Array.isArray(route.hashes) ? route.hashes : null;
+      const pointRows = route.points.map((pt, idx) => {
+        const lat = Number(pt[0]);
+        const lon = Number(pt[1]);
+        let hopDistance = null;
+        if (idx > 0 && Number.isFinite(lat) && Number.isFinite(lon)) {
+          const prev = route.points[idx - 1];
+          const prevLat = Number(prev[0]);
+          const prevLon = Number(prev[1]);
+          if (Number.isFinite(prevLat) && Number.isFinite(prevLon)) {
+            hopDistance = haversineMeters(prevLat, prevLon, lat, lon);
+            if (Number.isFinite(hopDistance)) {
+              cumulative += hopDistance;
+            }
+          }
+        }
+        const hopHash = hashes && idx > 0 ? hashes[idx - 1] : null;
+        return {
+          index: idx,
+          lat,
+          lon,
+          hop_distance_m: hopDistance,
+          hop_distance_label: Number.isFinite(hopDistance) ? formatDistanceUnits(hopDistance) : null,
+          cumulative_m: cumulative,
+          cumulative_label: Number.isFinite(cumulative) ? formatDistanceUnits(cumulative) : null,
+          hop_hash: hopHash || null,
+          hop_first_byte: hopHash ? hashFirstByteLabel(hopHash) : null
+        };
+      });
       return {
         id: route.id,
         route_mode: route.route_mode || 'path',
@@ -3367,7 +3413,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         hop_count: hopCount,
         point_count: route.points.length,
         distance_m: distanceMeters,
-        distance_label: distanceMeters ? formatDistanceUnits(distanceMeters) : 'unknown',
+        distance_label: Number.isFinite(distanceMeters) && distanceMeters > 0 ? formatDistanceUnits(distanceMeters) : 'unknown',
         origin_id: route.origin_id,
         origin_label: deviceLabelFromId(route.origin_id),
         receiver_id: route.receiver_id,
@@ -3379,11 +3425,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         expires_label: expiresInSeconds != null ? formatSecondsLabel(expiresInSeconds) : 'unknown',
         ts: route.ts,
         ts_label: formatTimestampLabel(route.ts),
-        points: route.points.map((pt, idx) => ({
-          index: idx,
-          lat: Number(pt[0]),
-          lon: Number(pt[1])
-        }))
+        points: pointRows,
+        hashes
       };
     }
 
@@ -3421,7 +3464,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         const rows = meta.points.map((pt) => ({
           index: pt.index,
           lat: Number.isFinite(pt.lat) ? pt.lat.toFixed(6) : pt.lat,
-          lon: Number.isFinite(pt.lon) ? pt.lon.toFixed(6) : pt.lon
+          lon: Number.isFinite(pt.lon) ? pt.lon.toFixed(6) : pt.lon,
+          hop_distance: pt.hop_distance_label,
+          cumulative: pt.cumulative_label,
+          hop_hash: pt.hop_hash ? shortHash(pt.hop_hash) : null,
+          hop_first_byte: pt.hop_first_byte || null
         }));
         console.table(rows);
       }
@@ -3440,7 +3487,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
       }
       if (!entry.meta) {
-        entry.meta = buildRouteLogMeta({ id: routeId, points: entry.line.getLatLngs ? entry.line.getLatLngs().map(pt => [pt.lat, pt.lng]) : [] });
+        const latlngs = entry.line.getLatLngs ? entry.line.getLatLngs() : [];
+        entry.meta = buildRouteLogMeta({ id: routeId, points: latlngs.map(pt => [pt.lat, pt.lng]) });
       }
       logRouteDetails(entry.meta, ev && ev.latlng);
     }
@@ -3474,7 +3522,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         style.dashArray = '8 14';
       }
 
-      const routeMeta = buildRouteLogMeta({ ...r, id, points });
+      const routeMeta = buildRouteLogMeta({ ...r, id, points, hashes: r.hashes });
       let entry = routeLines.get(id);
       if (!entry) {
         const line = L.polyline(points, style).addTo(routeLayer);
