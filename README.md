@@ -1,6 +1,6 @@
 # Mesh Live Map
 
-Version: `1.1.0` (see [VERSIONS.md](VERSIONS.md))
+Version: `1.1.1` (see [VERSIONS.md](VERSIONS.md))
 
 Live MeshCore traffic map that renders nodes, routes, and activity in real time on a Leaflet map. The backend subscribes to MQTT over WebSockets+TLS or TCP, decodes MeshCore packets with `@michaelhart/meshcore-decoder`, and streams updates to the browser via WebSockets.
 
@@ -26,12 +26,13 @@ Live example sites:
 - Peers tool showing incoming/outgoing neighbors with on-map lines (blue = incoming, purple = outgoing)
 - Coverage layer from a coverage map API (button hidden when not configured)
 - Update available banner (git local vs upstream) with dismiss
+- Automatic asset cache busting on reload (no manual cache clear after updates)
 - UI controls: legend toggle, dark map, topo map, units toggle (km/mi), labels toggle, hide nodes, heat toggle
 - Share button that copies a URL with current view + settings
 - URL parameters to open the map at a specific view (center, zoom, toggles)
 - Node search by name or public key
 - Adjustable node size slider (defaults from env, saves locally)
-- LOS tool with elevation profile + peak markers and hover sync (Shift+click or long‑press nodes)
+- LOS tool with elevation profile, height offsets, and peak markers (Shift+click or long‑press nodes)
 - Embeddable metadata (Open Graph/Twitter tags) driven by env vars
 - Preview image renders in-bounds device dots for shared links
 - Route pruning via neighbor-aware closest-hop selection + max hop distance (configurable)
@@ -193,6 +194,7 @@ Use it:
 - Runtime state is persisted to `data/state.json`.
 - MQTT disconnects are handled; the client will reconnect when the broker returns.
 - Line-of-sight tool: click **LOS tool** and pick two points, or **Shift+click** two nodes to measure LOS between them.
+- Optional Point A/B height offsets (meters) are added to terrain when computing LOS.
 - On mobile, long‑press a node to select it for LOS.
 - LOS runs server-side via `/los` (no client-side elevation fetch).
 - History tool always loads off (use the button or `history=on` in the URL).

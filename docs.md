@@ -1,13 +1,18 @@
 # Mesh Map Live: Implementation Notes
 
 This document captures the state of the project and the key changes made so far, so a new Codex session can pick up without losing context.
-Current version: `1.1.0` (see `VERSIONS.md`).
+Current version: `1.1.1` (see `VERSIONS.md`).
 
 ## Overview
 This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A FastAPI backend subscribes to MQTT (WSS/TLS or TCP), decodes MeshCore packets using `@michaelhart/meshcore-decoder`, and broadcasts device updates and routes over WebSockets to the frontend. Core logic is split into config/state/decoder/LOS/history modules so changes are localized. The UI includes heatmap, LOS tools, map mode toggles, and a 24‑hour route history layer.
 
+## Recent Additions
+- LOS tool accepts Point A/B height offsets (meters) and can keep Point A when clearing.
+- LOS peak markers render only when LOS is blocked.
+- Static assets now use `ASSET_VERSION` for automatic cache busting on reload.
+
 ## Versioning
-- `VERSION.txt` holds the current version string (`1.1.0`).
+- `VERSION.txt` holds the current version string (`1.1.1`).
 - `VERSIONS.md` is an append-only changelog by version.
 
 ## Key Paths

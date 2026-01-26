@@ -1,5 +1,10 @@
 # Versions
 
+## v1.1.1 (01-26-2026)
+- LOS tool supports Point A/B height offsets and "Keep A on Clear" behavior (credit: Zaos from Boston Mesh).
+- LOS peak markers render only when LOS is blocked to reduce map clutter.
+- Asset URLs now include an auto-generated cache buster (`ASSET_VERSION`) so updates load on next refresh.
+
 ## v1.1.0 (01-21-2026)
 - History panel can be dismissed with an X while keeping history lines visible (re-open via History tool).
 - Bump service worker cache and asset version to ensure the new History panel behavior loads.
