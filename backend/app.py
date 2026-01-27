@@ -1933,7 +1933,17 @@ def map_page(request: Request):
     return FileResponse("static/index.html")
 
   # Include all the template replacements (same as root endpoint)
-  # ... (reusing same logic as root for brevity; both load index.html)
+  # Generate OG image tags
+  og_image_tag = ""
+  twitter_image_tag = ""
+  if SITE_OG_IMAGE:
+    safe_image = html.escape(str(SITE_OG_IMAGE), quote=True)
+    og_image_tag = f'<meta property="og:image" content="{safe_image}" />'
+    twitter_image_tag = f'<meta name="twitter:image" content="{safe_image}" />'
+  
+  content = content.replace("{{OG_IMAGE_TAG}}", og_image_tag)
+  content = content.replace("{{TWITTER_IMAGE_TAG}}", twitter_image_tag)
+  
   trail_info_suffix = ""
   if TRAIL_LEN > 0:
     trail_info_suffix = f" Trails show last ~{TRAIL_LEN} points."
