@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Current version: `1.2.0` (see `VERSIONS.md`).
+Current version: `1.1.2` (see `VERSIONS.md`).
 
 ## Project Structure & Module Organization
 - `backend/app.py` wires FastAPI routes, MQTT lifecycle, and websocket broadcast flow.
@@ -9,18 +9,15 @@ Current version: `1.2.0` (see `VERSIONS.md`).
 - `backend/decoder.py` contains payload parsing, MeshCore decoding, and route helpers.
 - `backend/los.py` contains LOS math + elevation fetch helpers.
 - `backend/history.py` handles 24h route history persistence/cleanup.
-- `backend/turnstile.py` handles Cloudflare Turnstile token verification and auth token management (v1.2.0+).
-- `backend/static/index.html` is the map page HTML shell + template placeholders; includes Turnstile auth check (v1.2.0+).
-- `backend/static/landing.html` is the Turnstile verification landing page with widget and progress UI (v1.2.0+).
+- `backend/static/index.html` is the HTML shell + template placeholders.
 - `backend/static/styles.css` holds all UI styles.
 - `backend/static/app.js` holds all client-side map logic.
-- `backend/static/turnstile.js` handles Turnstile widget initialization and token submission (v1.2.0+).
 - `backend/static/sw.js` is the PWA service worker.
 - `backend/requirements.txt` and `backend/Dockerfile` define Python and Node dependencies.
 - `docker-compose.yaml` runs the service as `meshmap-live`.
 - `data/` stores persisted state (`state.json`), route history (`route_history.jsonl`), role overrides (`device_roles.json`), and optional neighbor overrides (`neighbor_overrides.json`).
 - `.env` holds dev runtime settings; `.env.example` mirrors template defaults.
-- `VERSION.txt` tracks the current version (now `1.2.0`); append changes in `VERSIONS.md`.
+- `VERSION.txt` tracks the current version (now `1.1.2`); append changes in `VERSIONS.md`.
 
 ## Build, Test, and Development Commands
 - `docker compose up -d --build` rebuilds and restarts the backend (preferred workflow).
@@ -49,7 +46,6 @@ Current version: `1.2.0` (see `VERSIONS.md`).
 ## Configuration & Operations
 - Most behavior is controlled by `.env` (MQTT host, TLS, topics, TTLs, map start lat/lon/zoom, MQTT online window, default map layer).
 - Current dev defaults: `DEVICE_TTL_SECONDS=259200`, `MQTT_ONLINE_SECONDS=600`, `ROUTE_TTL_SECONDS=60`, `TRAIL_LEN=0`, `DISTANCE_UNITS=km`.
-- Turnstile authentication (v1.2.0+): `TURNSTILE_ENABLED` (default `false`), `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_API_URL`, `TURNSTILE_TOKEN_TTL_SECONDS` (default `86400`). When enabled, unauthenticated users see a landing page with Turnstile verification before accessing the map.
 - Node size default is `NODE_MARKER_RADIUS` (pixels); users can override via the HUD slider.
 - History link size default is `HISTORY_LINK_SCALE`; users can override via the History panel slider.
 - Map radius filter: `MAP_RADIUS_KM=0` disables filtering; `.env.example` uses `241.4` km (150mi). Applies to nodes, trails, routes, and history edges.
@@ -67,9 +63,9 @@ Current version: `1.2.0` (see `VERSIONS.md`).
 - History tool visibility is not persisted; it always loads off unless `history=on` is in the URL.
 
 ## Feature Notes
-- Cloudflare Turnstile authentication (v1.2.0+) provides optional bot protection with a landing page widget, step-by-step verification progress, and automatic token management.
 - MQTT supports WSS/TLS or TCP; meshcore-decoder runs via a Node helper for advert/location parsing.
 - Routes are rendered as trace/message/advert lines with TTL cleanup; 0,0 coords (including stringy zeros) are filtered from trails/routes.
+- Dev route debug: in non-prod mode (`PROD_MODE=false`), clicking a route line logs hop-by-hop details to the browser console (distance, hashes, origin/receiver, timestamps).
 - Route hash collisions prefer known neighbors (and optional overrides); long path lists are skipped via `ROUTE_PATH_MAX_LEN`.
 - Route collisions fall back to closest-hop selection and drop hops beyond `ROUTE_MAX_HOP_DISTANCE`.
 - `ROUTE_INFRA_ONLY` restricts route lines to repeaters/rooms (companions still show as markers).
