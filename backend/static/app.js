@@ -3526,7 +3526,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       let entry = routeLines.get(id);
       if (!entry) {
         const line = L.polyline(points, style).addTo(routeLayer);
-        line.on('click', (ev) => handleRouteClick(id, ev));
+        if (!prodMode) {
+          line.on('click', (ev) => handleRouteClick(id, ev));
+        }
         entry = { line, timeout: null };
         routeLines.set(id, entry);
       } else {
