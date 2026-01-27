@@ -172,6 +172,14 @@ TURNSTILE_API_URL = os.getenv(
   "TURNSTILE_API_URL", "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 )
 TURNSTILE_TOKEN_TTL_SECONDS = int(os.getenv("TURNSTILE_TOKEN_TTL_SECONDS", "86400"))
+TURNSTILE_BOT_BYPASS = os.getenv("TURNSTILE_BOT_BYPASS", "true").lower() == "true"
+TURNSTILE_BOT_ALLOWLIST = os.getenv(
+  "TURNSTILE_BOT_ALLOWLIST",
+  (
+    "discordbot,twitterbot,slackbot,facebookexternalhit,"
+    "linkedinbot,telegrambot,whatsapp"
+  ),
+).strip()
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 NODE_SCRIPT_PATH = os.path.join(APP_DIR, "meshcore_decode.mjs")

@@ -104,6 +104,8 @@ from config import (
   TURNSTILE_SECRET_KEY,
   TURNSTILE_API_URL,
   TURNSTILE_TOKEN_TTL_SECONDS,
+  TURNSTILE_BOT_BYPASS,
+  TURNSTILE_BOT_ALLOWLIST,
   DECODE_WITH_NODE,
   NODE_DECODE_TIMEOUT_SECONDS,
   PAYLOAD_PREVIEW_MAX,
@@ -1401,9 +1403,35 @@ async def reaper():
 # =========================
 # Helpers: Turnstile auth
 # =========================
+TURNSTILE_BOT_TOKENS = [
+  token.strip().lower()
+  for token in TURNSTILE_BOT_ALLOWLIST.split(",")
+  if token and token.strip()
+]
+
+
+def _is_allowlisted_bot(request: Request) -> bool:
+  """Return True when the request looks like a known embed bot."""
+  if not TURNSTILE_ENABLED or not TURNSTILE_BOT_BYPASS:
+    return False
+  user_agent = (request.headers.get("user-agent") or "").lower()
+  if not user_agent:
+    return False
+  for token in TURNSTILE_BOT_TOKENS:
+    if token in user_agent:
+      return True
+  return False
+
+
 def _check_turnstile_auth(request: Request) -> bool:
   """Check if user has valid Turnstile auth token."""
   if not TURNSTILE_ENABLED or not turnstile_verifier:
+    return True
+
+  # Allowlist common embed bots (Discord, Slack, etc.)
+  if _is_allowlisted_bot(request):
+    ua = request.headers.get("user-agent", "-")
+    print(f"[turnstile] bot bypass user-agent={ua}")
     return True
 
   # Check for auth token in cookies or headers
