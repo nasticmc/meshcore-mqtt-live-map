@@ -1,5 +1,18 @@
 # Versions
 
+## v1.2.0 (01-27-2026)
+- Add Cloudflare Turnstile authentication layer with optional landing page.
+- New `turnstile.py` module with `TurnstileVerifier` class for token verification and auth token management.
+- New `/api/verify-turnstile` POST endpoint for backend token validation with Cloudflare.
+- New `/map` endpoint for authenticated map access with auth checks.
+- New `landing.html` page with Turnstile widget, loading animation, and step-by-step verification progress display.
+- New `turnstile.js` client-side handler with detailed console logging and automatic token storage.
+- Updated `index.html` with client-side auth token validation before map load.
+- Updated root `/` handler to redirect unauthenticated users to landing page when Turnstile is enabled.
+- New env variables: `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_API_URL`, `TURNSTILE_TOKEN_TTL_SECONDS`.
+- Turnstile protection is optional and disabled by default; enable with `TURNSTILE_ENABLED=true`.
+- Token expiration defaults to 24 hours; configurable via `TURNSTILE_TOKEN_TTL_SECONDS`.
+
 ## v1.1.1 (01-26-2026)
 - Fix: First-hop route selection now prefers the closest repeater/room to the origin when short-hash collisions occur, preventing cross-city mis-picks (Issue: https://github.com/yellowcooln/meshcore-mqtt-live-map/issues/11).
 

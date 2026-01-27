@@ -1,25 +1,28 @@
 # Mesh Map Live: Implementation Notes
 
 This document captures the state of the project and the key changes made so far, so a new Codex session can pick up without losing context.
-Current version: `1.1.1` (see `VERSIONS.md`).
+Current version: `1.2.0` (see `VERSIONS.md`).
 
 ## Overview
 This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A FastAPI backend subscribes to MQTT (WSS/TLS or TCP), decodes MeshCore packets using `@michaelhart/meshcore-decoder`, and broadcasts device updates and routes over WebSockets to the frontend. Core logic is split into config/state/decoder/LOS/history modules so changes are localized. The UI includes heatmap, LOS tools, map mode toggles, and a 24‑hour route history layer.
 
 ## Versioning
-- `VERSION.txt` holds the current version string (`1.1.1`).
+- `VERSION.txt` holds the current version string (`1.2.0`).
 - `VERSIONS.md` is an append-only changelog by version.
 
 ## Key Paths
-- `backend/app.py`: FastAPI server + MQTT lifecycle and websocket broadcasting.
+- `backend/app.py`: FastAPI server + MQTT lifecycle, websocket broadcasting, and Turnstile auth routes.
 - `backend/config.py`: environment/config constants (shared across backend modules).
 - `backend/state.py`: shared runtime state (devices/routes/history) + dataclasses.
 - `backend/decoder.py`: payload parsing, meshcore-decoder integration, route helpers.
 - `backend/los.py`: LOS math + elevation sampling.
 - `backend/history.py`: route history persistence + pruning.
-- `backend/static/index.html`: HTML shell + template placeholders.
+- `backend/turnstile.py`: Cloudflare Turnstile token verification + auth token management.
+- `backend/static/index.html`: HTML shell + template placeholders; includes Turnstile auth check.
+- `backend/static/landing.html`: Turnstile verification landing page with widget + progress UI.
 - `backend/static/styles.css`: UI styles.
 - `backend/static/app.js`: Leaflet UI, markers, legends, routes, tools.
+- `backend/static/turnstile.js`: Turnstile widget handler with token submission and console logging.
 - `backend/static/sw.js`: PWA service worker.
 - `docker-compose.yaml`: runtime configuration.
 - `data/state.json`: persisted device/trail/roles/names (loaded at startup).
@@ -36,6 +39,12 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - `curl -s http://localhost:8080/peers/<device_id>` (peer counts for a node; uses route history).
 
 ## Env Notes (Recent Additions)
+- `TURNSTILE_ENABLED` enables/disables Cloudflare Turnstile authentication (default `false`).
+- `TURNSTILE_SITE_KEY` is the Cloudflare Turnstile site key for widget rendering.
+- `TURNSTILE_SECRET_KEY` is the Cloudflare Turnstile secret key for backend verification.
+- `TURNSTILE_API_URL` is the Cloudflare Turnstile verification API endpoint (default: `https://challenges.cloudflare.com/turnstile/v0/siteverify`).
+- `TURNSTILE_TOKEN_TTL_SECONDS` controls auth token expiration (default `86400` = 24 hours).
+- When `TURNSTILE_ENABLED=true`, unauthenticated users are redirected to `/` (landing page); authenticated users see the map.
 - `CUSTOM_LINK_URL` adds a HUD link button; blank hides it.
 - `MQTT_ONLINE_FORCE_NAMES` forces named nodes to show MQTT online and skips them in peers.
 - `GIT_CHECK_ENABLED`, `GIT_CHECK_FETCH`, `GIT_CHECK_PATH` enable update checks.
@@ -48,6 +57,17 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - MQTT supports **WebSockets + TLS** or plain TCP. Typical deployments use `MQTT_TRANSPORT=websockets`, `MQTT_TLS=true`, and `MQTT_WS_PATH=/` or `/mqtt`.
 - Decoder uses Node + `@michaelhart/meshcore-decoder` installed in the container.
 - `backend/decoder.py` writes a small Node helper and calls it to decode MeshCore packets.
+
+## Turnstile Authentication (v1.2.0+)
+- Cloudflare Turnstile is an optional, user-friendly verification layer that protects the map from bots.
+- **Disabled by default**: set `TURNSTILE_ENABLED=true` and configure `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` to enable.
+- When enabled, unauthenticated users see a landing page with a Turnstile widget; after verification, they get an auth token valid for `TURNSTILE_TOKEN_TTL_SECONDS` (default 24 hours).
+- Auth tokens are managed by `TurnstileVerifier` in `backend/turnstile.py` and stored in memory; they expire and are cleaned up automatically.
+- Frontend (`turnstile.js`) renders the widget, displays step-by-step progress with console logging, and stores the auth token in sessionStorage + localStorage.
+- The map page (`index.html`) checks for a valid auth token before loading; unauthenticated users are redirected to the landing page.
+- A dedicated `/map` endpoint also enforces auth checks for explicit map access.
+- `landing.html` includes a loading animation + progress tracker that shows initialization, widget load, verification, and token submission stages.
+- All Turnstile env variables are optional; if not set, the feature is gracefully disabled.
 
 ## Frontend UI
 - Header includes a GitHub link icon and HUD summary (stats, feed note).
@@ -157,6 +177,14 @@ If routes aren’t visible:
 - If MQTT online looks wrong, confirm `MQTT_ONLINE_TOPIC_SUFFIXES` in `.env` (default `/status,/packets`).
 
 ## Recent Fixes / Changes Summary
+- Added Cloudflare Turnstile authentication with optional landing page + step-by-step progress UI.
+- Turnstile module (`turnstile.py`) handles token verification with Cloudflare API + in-memory auth token lifecycle.
+- Added `/api/verify-turnstile` endpoint for backend verification and auth token issuance.
+- Added `/map` endpoint for explicit authenticated map access.
+- Landing page (`landing.html`) includes loading animation + 4-stage progress tracker (init, widget load, verification, token submit).
+- Frontend handler (`turnstile.js`) manages widget rendering, token submission, error recovery, and detailed console logging.
+- Auth check in `index.html` redirects unauthenticated users to landing when Turnstile is enabled.
+- Turnstile is optional and disabled by default; enable with `TURNSTILE_ENABLED=true`.
 - Added full WSS support and TLS options.
 - Integrated meshcore-decoder for advert/location + role parsing.
 - Added `/stats`, `/snapshot`, `/debug/last`, `/debug/status` endpoints.
@@ -171,7 +199,7 @@ If routes aren’t visible:
 - Filters out `0,0` GPS points from devices, trails, and routes (including string values).
 - Added 24h route history storage + history toggle with volume-based colors.
 - Hide nodes now hides heat/routes/history along with markers/trails.
-- Fixed MQTT disconnect callback signature so broker drops don’t crash the MQTT loop.
+- Fixed MQTT disconnect callback signature so broker drops don't crash the MQTT loop.
 - Route hash collisions prefer known neighbors (or overrides) before closest-hop selection; long path lists are skipped (`ROUTE_PATH_MAX_LEN`).
 - First-hop hash collisions now prefer the closest node to the origin to avoid cross-city mis-picks (Issue #11).
 - Trails can be disabled by setting `TRAIL_LEN=0` (HUD trail text is removed).
