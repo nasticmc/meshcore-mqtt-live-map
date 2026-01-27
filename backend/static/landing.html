@@ -201,6 +201,8 @@
 <body>
   <div class="landing-container">
     <div class="landing-card">
+      <!-- Hidden site key for turnstile.js to read without displaying it. -->
+      <code id="turnstile-sitekey" style="display: none">{{TURNSTILE_SITE_KEY}}</code>
       <div class="landing-header">
         <img class="landing-logo" src="{{SITE_ICON}}" alt="{{SITE_TITLE}}" />
         <h1 class="landing-title">{{SITE_TITLE}}</h1>
@@ -238,8 +240,6 @@
 
       <p class="info-text">
         This site is protected by Cloudflare Turnstile.
-        <br /><br />
-        Site ID: <code>{{TURNSTILE_SITE_KEY}}</code>
       </p>
     </div>
   </div>
