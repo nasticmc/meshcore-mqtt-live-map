@@ -4,4 +4,9 @@ example2.gif
 backend/static/logo.png
 
 # runtime state
-/data
+/data/state.json
+/data/*.json
+
+# python bytecode
+__pycache__/
+*.pyc

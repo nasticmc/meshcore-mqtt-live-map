@@ -1,6 +1,6 @@
 # Mesh Live Map
 
-Version: `1.1.1` (see [VERSIONS.md](VERSIONS.md))
+Version: `1.2.0` (see [VERSIONS.md](VERSIONS.md))
 
 Live MeshCore traffic map that renders nodes, routes, and activity in real time on a Leaflet map. The backend subscribes to MQTT over WebSockets+TLS or TCP, decodes MeshCore packets with `@michaelhart/meshcore-decoder`, and streams updates to the browser via WebSockets.
 
@@ -19,6 +19,7 @@ Live example sites:
 - Live node markers with roles (Repeater, Companion, Room Server, Unknown)
 - MQTT online indicator (green outline + popup status)
 - Animated route/trace lines and message fanout
+- Dev route inspection: click a route line in dev (`PROD_MODE=false`) to log hop-by-hop details in the browser console (PR #14, credit: https://github.com/sefator)
 - Heat map for the last 10 minutes of message activity (includes adverts)
 - Persistent device state and optional trails (disable with `TRAIL_LEN=0`)
 - 24-hour route history tool with volume-based coloring, click-to-view packet details, a heat-band slider, and a link-size slider
@@ -87,6 +88,15 @@ Storage + server:
 - `WEB_PORT` (host port for the web UI)
 - `PROD_MODE` (true to require a token for API + WS)
 - `PROD_TOKEN` (required token; send via `?token=` or `Authorization: Bearer`)
+
+Turnstile protection (prod-only):
+- `TURNSTILE_ENABLED` (requires `PROD_MODE=true`)
+- `TURNSTILE_SITE_KEY`
+- `TURNSTILE_SECRET_KEY`
+- `TURNSTILE_API_URL`
+- `TURNSTILE_TOKEN_TTL_SECONDS`
+- `TURNSTILE_BOT_BYPASS` (allowlist embed bots like Discord)
+- `TURNSTILE_BOT_ALLOWLIST` (comma-separated user-agent tokens; default: `discordbot,twitterbot,slackbot,facebookexternalhit,linkedinbot,telegrambot,whatsapp,skypeuripreview,redditbot`)
 
 Site metadata (page title + embeds):
 - `SITE_TITLE`
@@ -178,6 +188,9 @@ PROD_MODE=true
 PROD_TOKEN=<random-string>
 ```
 
+Turnstile protection is also gated by `PROD_MODE=true`. If `PROD_MODE=false`,
+Turnstile stays off even when `TURNSTILE_ENABLED=true`.
+
 Generate a token:
 ```
 openssl rand -hex 32
@@ -203,6 +216,8 @@ Use it:
 - Route styling uses payload type: 2/5 = Message (blue), 8/9 = Trace (orange), 4 = Advert (green).
 - If hop hashes collide, the backend prefers known neighbors (or overrides) before picking the closest hop and pruning beyond `ROUTE_MAX_HOP_DISTANCE`.
 - Coordinates at `0,0` (including string values) are filtered from devices, trails, and routes.
+- With Turnstile enabled, common embed bots (Discord, Slack, etc.) can be
+  allowlisted via `TURNSTILE_BOT_BYPASS` and `TURNSTILE_BOT_ALLOWLIST`.
 
 ## API
 The backend exposes a nodes API for external tools (e.g. MeshBuddy):

@@ -50,10 +50,31 @@
   data-update-available="{{UPDATE_AVAILABLE}}"
   data-update-local="{{UPDATE_LOCAL}}"
   data-update-remote="{{UPDATE_REMOTE}}"
+  data-turnstile-enabled="{{TURNSTILE_ENABLED}}"
 >
   <script>
     window.__meshmapStarted = false;
     window.__meshmapReportError = (message) => console.warn(message);
+    
+     // Check Turnstile authentication
+     (function() {
+       const turnstileEnabled = document.body.getAttribute('data-turnstile-enabled') === 'true';
+       if (!turnstileEnabled) {
+         console.log('[auth] Turnstile disabled, loading map');
+         return;
+       }
+       
+       // If this is the landing page (has Turnstile container), don't do auth check
+       // The frontend will handle Turnstile verification
+       const isTurnstileContainer = document.getElementById('turnstile-container');
+       if (isTurnstileContainer) {
+         console.log('[auth] On landing page with Turnstile widget');
+         return;
+       }
+       
+       // This is the map page - server already verified auth, just log
+       console.log('[auth] On map page, server verified authentication');
+     })();
   </script>
   <div class="hud">
     <div class="hud-header">
