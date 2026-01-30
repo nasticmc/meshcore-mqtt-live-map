@@ -1,6 +1,7 @@
 # Versions
 
-## v1.2.3 (01-29-2026)
+## v1.2.4 (01-29-2026)
+- Turnstile auth now grants access to `/snapshot`, `/stats`, `/peers`, and WebSocket without requiring a PROD token (prevents WS reconnect spam).
 - Show Hops panel now includes total route distance (sum of hop-to-hop segments) and updates live with unit toggles.
 
 ## v1.2.2 (01-29-2026)

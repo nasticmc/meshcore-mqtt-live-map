@@ -575,8 +575,23 @@ def _extract_token(headers: Dict[str, str]) -> Optional[str]:
   return headers.get("x-access-token") or headers.get("x-token")
 
 
+def _extract_cookie_token(headers: Dict[str, str], key: str) -> Optional[str]:
+  cookie = headers.get("cookie")
+  if not cookie:
+    return None
+  for part in cookie.split(";"):
+    part = part.strip()
+    if not part:
+      continue
+    if part.startswith(f"{key}="):
+      return part[len(key) + 1 :]
+  return None
+
+
 def _require_prod_token(request: Request) -> None:
   if not PROD_MODE:
+    return
+  if TURNSTILE_ENABLED and _check_turnstile_auth(request):
     return
   if not PROD_TOKEN:
     raise HTTPException(status_code=503, detail="prod_token_not_set")
@@ -589,6 +604,11 @@ def _require_prod_token(request: Request) -> None:
 
 
 def _ws_authorized(ws: WebSocket) -> bool:
+  if TURNSTILE_ENABLED and turnstile_verifier:
+    auth_token = _extract_cookie_token(ws.headers, "meshmap_auth") or \
+                 _extract_token(ws.headers)
+    if auth_token and turnstile_verifier.verify_auth_token(auth_token):
+      return True
   if not PROD_MODE:
     return True
   if not PROD_TOKEN:

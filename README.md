@@ -1,6 +1,6 @@
 # Mesh Live Map
 
-Version: `1.2.3` (see [VERSIONS.md](VERSIONS.md))
+Version: `1.2.4` (see [VERSIONS.md](VERSIONS.md))
 
 Live MeshCore traffic map that renders nodes, routes, and activity in real time on a Leaflet map. The backend subscribes to MQTT over WebSockets+TLS or TCP, decodes MeshCore packets with `@michaelhart/meshcore-decoder`, and streams updates to the browser via WebSockets.
 
@@ -191,6 +191,8 @@ PROD_TOKEN=<random-string>
 
 Turnstile protection is also gated by `PROD_MODE=true`. If `PROD_MODE=false`,
 Turnstile stays off even when `TURNSTILE_ENABLED=true`.
+When Turnstile is enabled, its auth cookie now grants access to `/snapshot`, `/stats`,
+`/peers`, and the WebSocket without requiring a PROD token (prevents reconnect spam).
 Ensure `PROD_MODE`/`PROD_TOKEN` are set in `.env` (docker-compose passes them through).
 
 Generate a token:
