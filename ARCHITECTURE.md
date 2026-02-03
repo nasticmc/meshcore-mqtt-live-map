@@ -1,7 +1,7 @@
 # Architecture Guide
 
 This document explains how the Mesh Live Map codebase is organized and how the components interact.
-Current version: `1.3.0` (see `VERSIONS.md`).
+Current version: `1.3.1` (see `VERSIONS.md`).
 
 ## High-Level Overview
 
@@ -169,7 +169,7 @@ A single file containing all client-side logic:
 | History tool | 600-800 | 24h route history visualization |
 | LOS tool | 800-1100 | Line of sight with elevation profile |
 | Peers tool | 1100-1300 | Inbound/outbound neighbor analysis |
-| Propagation tool | 1300-2000 | RF coverage simulation |
+| Propagation tool | 1300-2000 | RF coverage simulation (includes TX antenna gain + Rx AGL controls) |
 | WebSocket | 2000-2200 | Real-time updates |
 | UI handlers | 2200-4100 | Toggle buttons, sliders, search |
 
@@ -373,4 +373,4 @@ npx eslint backend/static/app.js
 ```
 
 Versioning:
-- See `VERSIONS.md` for the changelog; `VERSION.txt` mirrors the latest entry (`1.3.0`).
+- See `VERSIONS.md` for the changelog; `VERSION.txt` mirrors the latest entry (`1.3.1`).

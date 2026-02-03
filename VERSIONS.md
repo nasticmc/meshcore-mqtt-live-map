@@ -1,5 +1,10 @@
 # Versions
 
+## v1.3.1 (02-03-2026)
+- Propagation tool now includes an adjustable **TX antenna gain (dBi)** field that feeds directly into range and coverage calculations.
+- Propagation defaults now start with **Rx AGL = 1m** (previously 5m).
+- Credit: C2D.
+
 ## v1.3.0 (02-03-2026)
 - LOS tool now supports realtime endpoint dragging with throttled live recompute for smoother interaction (PR #18, credit: https://github.com/mitchellmoss).
 - Added elevation fetch proxy endpoint (`/los/elevations`) with frontend caching/backoff to reduce API spam and avoid elevation rate-limit failures while dragging.

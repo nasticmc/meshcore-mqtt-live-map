@@ -213,12 +213,17 @@
   <div class="prop-panel" id="prop-panel">
     <div class="small"><strong>Propagation estimate</strong></div>
     <div class="small">LoRa 910.525 MHz • BW 62.5 kHz • SF7 • CR8</div>
-    <div class="small">Assumes 3 dBi TX antenna, 6 dB noise figure, 10 dB fade margin.</div>
+    <div class="small">Uses selected TX antenna gain (default 3 dBi), 6 dB noise figure, 10 dB fade margin.</div>
     <div class="small">Defaults assume 5 m AGL; MSL overrides use terrain data.</div>
     <label class="prop-field">
       <span>Tx power (dBm)<span class="prop-hint" title="transmit power used for link budget"
           data-tooltip="transmit power used for link budget">?</span></span>
       <input id="prop-txpower" type="number" min="2" max="30" step="1" value="22" />
+    </label>
+    <label class="prop-field">
+      <span>TX antenna gain (dBi)<span class="prop-hint" title="antenna gain added to TX power for range estimates"
+          data-tooltip="antenna gain added to TX power for range estimates">?</span></span>
+      <input id="prop-tx-gain" type="number" min="-10" max="20" step="0.5" value="3" />
     </label>
     <label class="prop-field">
       <span>Opacity<span class="prop-hint" title="overlay transparency"
@@ -253,7 +258,7 @@
     <label class="prop-field">
       <span>Rx AGL (m)<span class="prop-hint" title="receiver height above ground"
           data-tooltip="receiver height above ground">?</span></span>
-      <input id="prop-rx-agl" type="number" min="0" max="50" step="0.5" value="5" />
+      <input id="prop-rx-agl" type="number" min="0" max="50" step="0.5" value="1" />
     </label>
     <label class="prop-field">
       <span>Rx MSL override (m)<span class="prop-hint" title="override receiver altitude above sea level"

@@ -1,13 +1,13 @@
 # Mesh Map Live: Implementation Notes
 
 This document captures the state of the project and the key changes made so far, so a new Codex session can pick up without losing context.
-Current version: `1.3.0` (see `VERSIONS.md`).
+Current version: `1.3.1` (see `VERSIONS.md`).
 
 ## Overview
 This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A FastAPI backend subscribes to MQTT (WSS/TLS or TCP), decodes MeshCore packets using `@michaelhart/meshcore-decoder`, and broadcasts device updates and routes over WebSockets to the frontend. Core logic is split into config/state/decoder/LOS/history modules so changes are localized. The UI includes heatmap, LOS tools, map mode toggles, and a 24‑hour route history layer.
 
 ## Versioning
-- `VERSION.txt` holds the current version string (`1.3.0`).
+- `VERSION.txt` holds the current version string (`1.3.1`).
 - `VERSIONS.md` is an append-only changelog by version.
 
 ## Key Paths
@@ -87,6 +87,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - History line weight was reduced for improved readability.
 - Propagation overlay keeps heat/routes/trails/markers above it after render; the panel lives on the right and retains the last render until you generate a new one.
 - Propagation origin markers can be removed individually by clicking them.
+- Propagation now supports adjustable TX antenna gain (dBi), and defaults Rx AGL to 1m.
 - Heatmap includes all route payload types (adverts are no longer skipped).
 - MQTT online status shows as a green marker outline and popup status; it uses `mqtt_seen_ts` from `/status` or `/packets` topics (configurable).
 - `MQTT_ONLINE_FORCE_NAMES` can force named nodes to show as MQTT online regardless of last seen.
@@ -192,3 +193,4 @@ If routes aren’t visible:
 - `/api/nodes` now applies `updated_since` automatically (use `mode=full` to force full snapshots).
 - Route IDs are observer-aware (`message_hash:receiver_id`) so multi-observer receptions do not overwrite each other.
 - `ROUTE_INFRA_ONLY` direct-route checks now allow rendering when at least one endpoint is infrastructure.
+- Propagation range math now uses a user-set TX antenna gain field; Rx AGL default lowered to 1m (credit: C2D).

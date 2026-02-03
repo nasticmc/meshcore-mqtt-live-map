@@ -2101,6 +2101,7 @@ function isMultiOriginEnabled() {
 
 function getPropagationConfig() {
   const txInput = document.getElementById('prop-txpower');
+  const txGainInput = document.getElementById('prop-tx-gain');
   const opacityInput = document.getElementById('prop-opacity');
   const modelSelect = document.getElementById('prop-model');
   const terrainInput = document.getElementById('prop-terrain');
@@ -2117,10 +2118,11 @@ function getPropagationConfig() {
   const gridInput = document.getElementById('prop-grid');
   const sampleInput = document.getElementById('prop-sample');
   const rangeFactorInput = document.getElementById('prop-range-factor');
-  if (!txInput || !opacityInput || !modelSelect || !terrainInput || !txAglInput || !rxAglInput || !txMslInput || !rxMslInput || !minRxInput || !autoRangeInput || !fadeMarginInput || !webGpuInput || !autoResInput || !maxCellsInput || !gridInput || !sampleInput || !rangeFactorInput) {
+  if (!txInput || !txGainInput || !opacityInput || !modelSelect || !terrainInput || !txAglInput || !rxAglInput || !txMslInput || !rxMslInput || !minRxInput || !autoRangeInput || !fadeMarginInput || !webGpuInput || !autoResInput || !maxCellsInput || !gridInput || !sampleInput || !rangeFactorInput) {
     return null;
   }
   const txPower = Number(txInput.value);
+  const txAntennaGainDb = Number(txGainInput.value);
   const opacity = Number(opacityInput.value);
   const model = PROP_MODELS[modelSelect.value] || PROP_MODELS.suburban;
   const terrain = terrainInput.checked;
@@ -2140,6 +2142,7 @@ function getPropagationConfig() {
   if (!Number.isFinite(txPower) || !Number.isFinite(opacity)) return null;
   return {
     txPower,
+    txAntennaGainDb: Number.isFinite(txAntennaGainDb) ? Math.min(20, Math.max(-10, txAntennaGainDb)) : PROP_DEFAULTS.txAntennaGainDb,
     opacity: Math.min(0.9, Math.max(0.05, opacity)),
     model,
     terrain,
@@ -2304,7 +2307,7 @@ function updatePropagationSummary() {
     PROP_DEFAULTS.noiseFigureDb,
     PROP_DEFAULTS.snrMinDb
   );
-  const effectiveTxPower = config.txPower + PROP_DEFAULTS.txAntennaGainDb;
+  const effectiveTxPower = config.txPower + config.txAntennaGainDb;
   const maxPathLoss = config.autoRange
     ? (effectiveTxPower - config.minRxDbm)
     : calcMaxPathLossDb(effectiveTxPower, sensitivity, PROP_DEFAULTS.fadeMarginDb);
@@ -2908,7 +2911,7 @@ async function renderPropagationRaster() {
     PROP_DEFAULTS.noiseFigureDb,
     PROP_DEFAULTS.snrMinDb
   );
-  const effectiveTxPower = config.txPower + PROP_DEFAULTS.txAntennaGainDb;
+  const effectiveTxPower = config.txPower + config.txAntennaGainDb;
   const maxPathLoss = config.autoRange
     ? (effectiveTxPower - config.minRxDbm)
     : calcMaxPathLossDb(effectiveTxPower, sensitivity, PROP_DEFAULTS.fadeMarginDb);
@@ -4949,6 +4952,7 @@ if (coverageToggle && coverageEnabled) {
 
 const propToggle = document.getElementById('prop-toggle');
 const propTxInput = document.getElementById('prop-txpower');
+const propTxGainInput = document.getElementById('prop-tx-gain');
 const propOpacityInput = document.getElementById('prop-opacity');
 const propModelSelect = document.getElementById('prop-model');
 const propTerrainInput = document.getElementById('prop-terrain');
@@ -4974,6 +4978,16 @@ if (propTxInput) {
   if (storedTx !== null) propTxInput.value = storedTx;
   propTxInput.addEventListener('input', () => {
     localStorage.setItem('meshmapPropTxPower', propTxInput.value);
+    updatePropagationSummary();
+    markPropagationDirty();
+  });
+}
+
+if (propTxGainInput) {
+  const storedTxGain = localStorage.getItem('meshmapPropTxGain');
+  if (storedTxGain !== null) propTxGainInput.value = storedTxGain;
+  propTxGainInput.addEventListener('input', () => {
+    localStorage.setItem('meshmapPropTxGain', propTxGainInput.value);
     updatePropagationSummary();
     markPropagationDirty();
   });

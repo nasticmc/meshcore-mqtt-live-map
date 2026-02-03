@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Current version: `1.3.0` (see `VERSIONS.md`).
+Current version: `1.3.1` (see `VERSIONS.md`).
 
 ## Project Structure & Module Organization
 - `backend/app.py` wires FastAPI routes, MQTT lifecycle, and websocket broadcast flow.
@@ -17,7 +17,7 @@ Current version: `1.3.0` (see `VERSIONS.md`).
 - `docker-compose.yaml` runs the service as `meshmap-live`.
 - `data/` stores persisted state (`state.json`), route history (`route_history.jsonl`), role overrides (`device_roles.json`), and optional neighbor overrides (`neighbor_overrides.json`).
 - `.env` holds dev runtime settings; `.env.example` mirrors template defaults.
-- `VERSION.txt` tracks the current version (now `1.3.0`); append changes in `VERSIONS.md`.
+- `VERSION.txt` tracks the current version (now `1.3.1`); append changes in `VERSIONS.md`.
 
 ## Build, Test, and Development Commands
 - `docker compose up -d --build` rebuilds and restarts the backend (preferred workflow).
@@ -94,6 +94,7 @@ Current version: `1.3.0` (see `VERSIONS.md`).
 - History panel can be dismissed with the X button while leaving history lines visible (History tool brings it back).
 - History records route modes from `ROUTE_HISTORY_ALLOWED_MODES` (default: `path`).
 - Propagation render stays visible until a new render; origin changes only mark it dirty.
+- Propagation now has an adjustable TX antenna gain (dBi) control, and Rx AGL defaults to 1m.
 - Preview image endpoint renders in-bounds device dots for shared links.
 - Peers tool opens a right-side panel showing incoming/outgoing neighbors (counts + %) based on recent route history; selecting a node draws peer lines on the map.
 - Peers tool ignores nodes listed in `MQTT_ONLINE_FORCE_NAMES` (used for observer listeners).

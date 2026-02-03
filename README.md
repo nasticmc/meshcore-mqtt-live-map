@@ -1,6 +1,6 @@
 # Mesh Live Map
 
-Version: `1.3.0` (see [VERSIONS.md](VERSIONS.md))
+Version: `1.3.1` (see [VERSIONS.md](VERSIONS.md))
 
 Live MeshCore traffic map that renders nodes, routes, and activity in real time on a Leaflet map. The backend subscribes to MQTT over WebSockets+TLS or TCP, decodes MeshCore packets with `@michaelhart/meshcore-decoder`, and streams updates to the browser via WebSockets.
 
@@ -39,6 +39,7 @@ Live example sites:
 - Route lines are derived from decoded packet paths only (no MQTT observer/receiver fallback)
 - First-hop collision fix prefers the closest repeater/room to the sender (Issue #11)
 - Propagation panel lives on the right and keeps the last render until you generate a new one (click an origin marker to remove it)
+- Propagation tool supports adjustable **TX antenna gain (dBi)**, and now defaults **Rx AGL** to **1m**
 - Installable PWA (manifest + service worker) for Add to Home Screen
 - Click the logo to hide/show the left HUD panel while tools stay open
 
