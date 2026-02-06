@@ -4,6 +4,7 @@
 - Added dual stale-window support so `DEVICE_TTL_HOURS` and `PATH_TTL_SECONDS` work together instead of replacing each other.
 - Node pruning now supports both windows at once (with 4-day device defaults and 48-hour path defaults in examples/compose).
 - Environment docs and examples now describe the `DEVICE_TTL_HOURS` + `PATH_TTL_SECONDS` model and default values.
+- Added `DEVICE_COORDS_FILE` config path support (default: `/data/device_coords.json`) in compose and env docs.
 - Credit: `PATH_TTL_SECONDS` flow by https://github.com/djp3.
 - Credit: `DEVICE_TTL_HOURS` flow by https://github.com/chrisdavis2110.
 
