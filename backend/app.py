@@ -76,6 +76,7 @@ from config import (
   STATE_DIR,
   STATE_FILE,
   DEVICE_ROLES_FILE,
+  DEVICE_COORDS_FILE,
   NEIGHBOR_OVERRIDES_FILE,
   STATE_SAVE_INTERVAL,
   DEVICE_TTL_SECONDS,
@@ -170,6 +171,7 @@ from state import (
   message_origins,
   device_roles,
   device_role_sources,
+  device_coords,
   neighbor_edges,
 )
 
@@ -242,6 +244,27 @@ def _load_role_overrides() -> Dict[str, str]:
       continue
     roles[key.strip()] = role
   return roles
+
+
+def _load_coord_overrides() -> Dict[str, Dict[str, float]]:
+  if not DEVICE_COORDS_FILE or not os.path.exists(DEVICE_COORDS_FILE):
+    return {}
+  try:
+    with open(DEVICE_COORDS_FILE, "r", encoding="utf-8") as handle:
+      data = json.load(handle)
+  except Exception:
+    return {}
+  if not isinstance(data, dict):
+    return {}
+  coords: Dict[str, Dict[str, float]] = {}
+  for key, value in data.items():
+    if not isinstance(key, str) or not isinstance(value, dict):
+      continue
+    lat = value.get("lat")
+    lon = value.get("lon")
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+      coords[key.strip()] = {"lat": float(lat), "lon": float(lon)}
+  return coords
 
 
 def _load_neighbor_overrides() -> None:
@@ -736,6 +759,14 @@ def _load_state() -> None:
   if dropped_ids:
     for device_id in dropped_ids:
       device_roles.pop(device_id, None)
+  # Load and apply coordinate overrides
+  coord_overrides = _load_coord_overrides()
+  if coord_overrides:
+    device_coords.clear()
+    device_coords.update(coord_overrides)
+  if dropped_ids:
+    for device_id in dropped_ids:
+      device_coords.pop(device_id, None)
   _rebuild_node_hash_map()
 
   for device_id, state in devices.items():
@@ -743,6 +774,11 @@ def _load_state() -> None:
       state.name = device_names[device_id]
     role_value = device_roles.get(device_id)
     state.role = role_value if role_value else None
+    # Apply coordinate overrides to loaded devices
+    coord_override = device_coords.get(device_id)
+    if coord_override:
+      state.lat = coord_override["lat"]
+      state.lon = coord_override["lon"]
 
 
 async def _state_saver() -> None:
@@ -803,18 +839,132 @@ def mqtt_on_message(client, userdata, msg: mqtt.MQTTMessage):
 
   parsed, debug = _try_parse_payload(msg.topic, msg.payload)
   device_id_hint = parsed.get("device_id") if parsed else None
-  if parsed and _coords_are_zero(parsed.get("lat", 0), parsed.get("lon", 0)):
+  # Also try to get device_id from topic if parsing failed or no device_id in parsed data
+  topic_device_id = _device_id_from_topic(msg.topic)
+
+  # Priority: decoded_pubkey (origin/repeater that sent packet) > parsed device_id > topic device_id (receiver)
+  decoded_pubkey = debug.get("decoded_pubkey")
+  if isinstance(decoded_pubkey, str) and decoded_pubkey.strip():
+    decoded_pubkey = decoded_pubkey.strip()
+  else:
+    decoded_pubkey = None
+
+  # Check if device has coordinate override - prioritize decoded packet public key (origin)
+  coord_override = None
+  matched_device_id = None
+
+  # Try 1: decoded_pubkey (origin/repeater that sent the packet) - this is what we want!
+  if decoded_pubkey and decoded_pubkey in device_coords:
+    coord_override = device_coords[decoded_pubkey]
+    matched_device_id = decoded_pubkey
+  # Try 2: device_id_hint from parsed data (should also be decoded_pubkey if available)
+  elif device_id_hint and device_id_hint in device_coords:
+    coord_override = device_coords[device_id_hint]
+    matched_device_id = device_id_hint
+  # Try 3: Check if decoded_pubkey matches any override via substring (for partial matches)
+  elif decoded_pubkey:
+    for override_id in device_coords.keys():
+      if override_id in decoded_pubkey or decoded_pubkey in override_id:
+        coord_override = device_coords[override_id]
+        matched_device_id = override_id
+        break
+  # Try 4: topic_device_id (receiver/observer) - only as fallback
+  if not coord_override and topic_device_id and topic_device_id in device_coords:
+    coord_override = device_coords[topic_device_id]
+    matched_device_id = topic_device_id
+  # Try 5: Check all parts of the topic path (receiver/observer)
+  if not coord_override:
+    topic_parts = msg.topic.split("/")
+    for part in topic_parts:
+      if part and len(part) > 10 and part in device_coords:  # Only check parts that look like device IDs (long hex strings)
+        coord_override = device_coords[part]
+        matched_device_id = part
+        break
+    # Try 6: Check if any device_id in override file is a substring of any topic part (for partial matches)
+    if not coord_override:
+      for part in topic_parts:
+        if part and len(part) > 10:
+          # Check if any override key is contained in this topic part or vice versa
+          for override_id in device_coords.keys():
+            if override_id in part or part in override_id:
+              coord_override = device_coords[override_id]
+              matched_device_id = override_id
+              break
+          if coord_override:
+            break
+
+  has_coord_override = coord_override is not None
+  # Initialize check_lat and check_lon - will be set from override or parsed data
+  check_lat = None
+  check_lon = None
+
+  if has_coord_override and matched_device_id:
+    # Use override coordinates for filtering checks and inject into parsed data
+    check_lat = coord_override["lat"]
+    check_lon = coord_override["lon"]
+    # Normalize timestamp: if it's too far in the future (> 1 hour), use current time
+    now_ts = time.time()
+    parsed_ts = parsed.get("ts") if parsed else None
+    if parsed_ts and parsed_ts > now_ts + 3600:  # More than 1 hour in future
+      parsed_ts = now_ts
+      if DEBUG_PAYLOAD:
+        print(f"[mqtt] Normalized future timestamp: device={matched_device_id} future_ts={parsed.get('ts')} -> now={now_ts}")
+    # If parsing failed or has no location, create/update parsed data with override coords
+    # Use decoded_pubkey as device_id if available (origin), otherwise use matched_device_id
+    target_device_id = decoded_pubkey or matched_device_id
+    if not parsed:
+      parsed = {
+        "device_id": target_device_id,
+        "lat": coord_override["lat"],
+        "lon": coord_override["lon"],
+        "ts": now_ts,
+      }
+      device_id_hint = target_device_id
+      debug["result"] = "coord_override_created"
+      if DEBUG_PAYLOAD:
+        print(f"[mqtt] Created parsed data from coord override: device_id={target_device_id} (matched_override={matched_device_id}) lat={coord_override['lat']} lon={coord_override['lon']}")
+    elif parsed:
+      # If parsing succeeded but no location, inject override coordinates
+      if not parsed.get("lat") or not parsed.get("lon") or _coords_are_zero(parsed.get("lat", 0), parsed.get("lon", 0)):
+        parsed["lat"] = coord_override["lat"]
+        parsed["lon"] = coord_override["lon"]
+        # Ensure device_id is set to the decoded_pubkey (origin) if available
+        if decoded_pubkey:
+          parsed["device_id"] = decoded_pubkey
+          device_id_hint = decoded_pubkey
+        elif not device_id_hint:
+          parsed["device_id"] = matched_device_id
+          device_id_hint = matched_device_id
+        debug["result"] = debug.get("result") or "coord_override_applied"
+        if DEBUG_PAYLOAD:
+          print(f"[mqtt] Applied coord override to parsed data: device_id={parsed.get('device_id')} (matched_override={matched_device_id}) lat={coord_override['lat']} lon={coord_override['lon']}")
+      # Always normalize timestamp if it's in the future
+      if parsed_ts:
+        parsed["ts"] = parsed_ts
+
+  # Set check_lat/check_lon from parsed data if not already set from override
+  if check_lat is None and check_lon is None:
+    check_lat = parsed.get("lat") if parsed else None
+    check_lon = parsed.get("lon") if parsed else None
+
+  # Don't filter 0,0 coordinates if device has a coordinate override
+  if parsed and _coords_are_zero(parsed.get("lat", 0), parsed.get("lon", 0)) and not has_coord_override:
     debug["result"] = "filtered_zero_coords"
     parsed = None
-  if parsed and not _within_map_radius(parsed.get("lat"), parsed.get("lon")):
+  # Check radius using override coordinates if available
+  if parsed and check_lat is not None and check_lon is not None and not _within_map_radius(check_lat, check_lon):
     debug["result"] = "filtered_radius"
+    if DEBUG_PAYLOAD:
+      device_id_for_log = matched_device_id or decoded_pubkey or device_id_hint or topic_device_id or parsed.get("device_id")
+      print(f"[mqtt] Filtered device by radius: device_id={device_id_for_log} lat={check_lat} lon={check_lon} (radius={MAP_RADIUS_KM}km)")
     parsed = None
-    if device_id_hint:
+    if matched_device_id or decoded_pubkey or device_id_hint:
+      remove_id = matched_device_id or decoded_pubkey or device_id_hint
       loop.call_soon_threadsafe(
         update_queue.put_nowait,
         {
           "type": "device_remove",
-          "device_id": device_id_hint,
+          "device_id": remove_id,
           "reason": "radius",
         },
       )
@@ -1197,7 +1347,16 @@ async def broadcaster():
     )
 
     device_id = upd["device_id"]
-    if not _within_map_radius(upd.get("lat"), upd.get("lon")):
+    # Check if device has coordinate override before filtering by radius
+    coord_override = device_coords.get(device_id)
+    if coord_override:
+      # Use override coordinates for radius check
+      check_lat = coord_override["lat"]
+      check_lon = coord_override["lon"]
+    else:
+      check_lat = upd.get("lat")
+      check_lon = upd.get("lon")
+    if not _within_map_radius(check_lat, check_lon):
       if _evict_device(device_id):
         payload = {"type": "stale", "device_ids": [device_id]}
         dead = []
@@ -1210,11 +1369,18 @@ async def broadcaster():
           clients.discard(ws)
       continue
     is_new_device = device_id not in devices
+    # Normalize timestamp: if it's too far in the future (> 1 hour), use current time
+    now_ts = time.time()
+    device_ts = upd.get("ts", now_ts)
+    if device_ts > now_ts + 3600:  # More than 1 hour in future
+      if DEBUG_PAYLOAD:
+        print(f"[mqtt] Normalized future timestamp in device state: device={device_id} future_ts={device_ts} -> now={now_ts}")
+      device_ts = now_ts
     device_state = DeviceState(
       device_id=device_id,
       lat=upd["lat"],
       lon=upd["lon"],
-      ts=upd.get("ts", time.time()),
+      ts=device_ts,
       heading=upd.get("heading"),
       speed=upd.get("speed"),
       rssi=upd.get("rssi"),
@@ -1223,6 +1389,11 @@ async def broadcaster():
       role=upd.get("role") or device_roles.get(device_id),
       raw_topic=upd.get("raw_topic"),
     )
+    # Apply coordinate overrides
+    coord_override = device_coords.get(device_id)
+    if coord_override:
+      device_state.lat = coord_override["lat"]
+      device_state.lon = coord_override["lon"]
     devices[device_id] = device_state
     seen_devices[device_id] = time.time()
     state.state_dirty = True
@@ -1947,10 +2118,10 @@ def map_page(request: Request):
     safe_image = html.escape(str(SITE_OG_IMAGE), quote=True)
     og_image_tag = f'<meta property="og:image" content="{safe_image}" />'
     twitter_image_tag = f'<meta name="twitter:image" content="{safe_image}" />'
-  
+
   content = content.replace("{{OG_IMAGE_TAG}}", og_image_tag)
   content = content.replace("{{TWITTER_IMAGE_TAG}}", twitter_image_tag)
-  
+
   trail_info_suffix = ""
   if TRAIL_LEN > 0:
     trail_info_suffix = f" Trails show last ~{TRAIL_LEN} points."
@@ -2506,7 +2677,7 @@ async def verify_turnstile(request: Request):
       },
       status_code=200,
     )
-    
+
     # Set auth cookie (expires in TURNSTILE_TOKEN_TTL_SECONDS)
     response.set_cookie(
       key="meshmap_auth",
@@ -2515,7 +2686,7 @@ async def verify_turnstile(request: Request):
       path="/",
       samesite="lax",
     )
-    
+
     return response
 
   except json.JSONDecodeError:

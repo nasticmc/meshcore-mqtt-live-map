@@ -23,16 +23,18 @@ MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "")
 
 STATE_DIR = os.getenv("STATE_DIR", "/data")
 STATE_FILE = os.getenv("STATE_FILE", os.path.join(STATE_DIR, "state.json"))
-DEVICE_ROLES_FILE = os.getenv(
-  "DEVICE_ROLES_FILE", os.path.join(STATE_DIR, "device_roles.json")
-)
+DEVICE_ROLES_FILE = os.getenv("DEVICE_ROLES_FILE",
+                              os.path.join(STATE_DIR, "device_roles.json"))
+DEVICE_COORDS_FILE = os.getenv("DEVICE_COORDS_FILE",
+                               os.path.join(STATE_DIR, "device_coords.json"))
 NEIGHBOR_OVERRIDES_FILE = os.getenv(
   "NEIGHBOR_OVERRIDES_FILE",
   os.path.join(STATE_DIR, "neighbor_overrides.json"),
 )
 STATE_SAVE_INTERVAL = float(os.getenv("STATE_SAVE_INTERVAL", "5"))
 
-DEVICE_TTL_SECONDS = int(os.getenv("DEVICE_TTL_SECONDS", "300"))
+DEVICE_TTL_HOURS = float(os.getenv("DEVICE_TTL_HOURS", "72"))  # 72 hours default
+DEVICE_TTL_SECONDS = int(DEVICE_TTL_HOURS * 3600)
 TRAIL_LEN = int(os.getenv("TRAIL_LEN", "30"))
 ROUTE_TTL_SECONDS = int(os.getenv("ROUTE_TTL_SECONDS", "120"))
 ROUTE_PAYLOAD_TYPES = os.getenv("ROUTE_PAYLOAD_TYPES", "8,9,2,5,4")
