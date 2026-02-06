@@ -85,6 +85,7 @@ Storage + server:
 - `STATE_DIR` (persisted state path)
 - `STATE_FILE` (full state file path override)
 - `DEVICE_ROLES_FILE` (optional role override JSON file)
+- `DEVICE_COORDS_FILE` (optional coordinate override JSON file; default `/data/device_coords.json`)
 - `NEIGHBOR_OVERRIDES_FILE` (optional JSON mapping for neighbor overrides)
 - `STATE_SAVE_INTERVAL` (seconds between state saves)
 - `WEB_PORT` (host port for the web UI)

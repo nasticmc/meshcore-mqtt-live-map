@@ -44,6 +44,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - `ROUTE_INFRA_ONLY` limits route lines to repeaters/rooms (companions excluded from routes).
 - `DEVICE_TTL_HOURS` controls advert/device staleness (default `96` hours).
 - `PATH_TTL_SECONDS` controls path staleness (default `172800` seconds / 48h).
+- `DEVICE_COORDS_FILE` points to optional coordinate overrides (`/data/device_coords.json` by default).
 - `NEIGHBOR_OVERRIDES_FILE` points at an optional JSON file with neighbor pairs to resolve hash collisions.
 - Turnstile protection is gated by `PROD_MODE=true` and controlled by:
   `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`,
