@@ -83,7 +83,7 @@
 ## v1.0.7 (01-14-2026)
 - Route hash collisions now prefer known neighbor pairs before falling back to closest-hop selection.
 - Add optional neighbor override map via `NEIGHBOR_OVERRIDES_FILE` (default `data/neighbor_overrides.json`).
-- Neighbor edges auto-expire using `DEVICE_TTL_SECONDS` to prevent stale adjacency picks.
+- Neighbor edges auto-expire using `DEVICE_TTL_SECONDS` (legacy env name, now `DEVICE_TTL_HOURS`) to prevent stale adjacency picks.
 
 ## v1.0.6 (01-13-2026)
 - Peers panel now labels line colors (blue = incoming, purple = outgoing).

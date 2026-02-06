@@ -79,7 +79,7 @@ from config import (
   DEVICE_COORDS_FILE,
   NEIGHBOR_OVERRIDES_FILE,
   STATE_SAVE_INTERVAL,
-  DEVICE_TTL_SECONDS,
+  DEVICE_TTL_WINDOW_SECONDS,
   PATH_TTL_SECONDS,
   TRAIL_LEN,
   ROUTE_TTL_SECONDS,
@@ -358,7 +358,7 @@ def _update_path_timestamps(point_ids: List[Optional[str]], ts: float) -> None:
 
 
 def _prune_neighbors(now: float) -> None:
-  ttl_seconds = PATH_TTL_SECONDS if PATH_TTL_SECONDS > 0 else DEVICE_TTL_SECONDS
+  ttl_seconds = PATH_TTL_SECONDS if PATH_TTL_SECONDS > 0 else DEVICE_TTL_WINDOW_SECONDS
   if ttl_seconds <= 0 or not neighbor_edges:
     return
   cutoff = now - ttl_seconds
@@ -1462,11 +1462,11 @@ async def reaper():
   while True:
     now = time.time()
 
-    if DEVICE_TTL_SECONDS > 0 or PATH_TTL_SECONDS > 0:
+    if DEVICE_TTL_WINDOW_SECONDS > 0 or PATH_TTL_SECONDS > 0:
       stale = []
       for dev_id, st in list(devices.items()):
         device_stale = (
-          DEVICE_TTL_SECONDS > 0 and (now - st.ts > DEVICE_TTL_SECONDS)
+          DEVICE_TTL_WINDOW_SECONDS > 0 and (now - st.ts > DEVICE_TTL_WINDOW_SECONDS)
         )
         last_path_ts = state.last_seen_in_path.get(dev_id, 0.0)
         path_stale = (
@@ -1474,9 +1474,9 @@ async def reaper():
           (last_path_ts <= 0 or now - last_path_ts > PATH_TTL_SECONDS)
         )
 
-        if DEVICE_TTL_SECONDS > 0 and PATH_TTL_SECONDS > 0:
+        if DEVICE_TTL_WINDOW_SECONDS > 0 and PATH_TTL_SECONDS > 0:
           should_stale = device_stale and path_stale
-        elif DEVICE_TTL_SECONDS > 0:
+        elif DEVICE_TTL_WINDOW_SECONDS > 0:
           should_stale = device_stale
         else:
           should_stale = path_stale
@@ -1582,7 +1582,7 @@ async def reaper():
     _prune_neighbors(now)
 
     retention_window = max(
-      DEVICE_TTL_SECONDS if DEVICE_TTL_SECONDS > 0 else 0,
+      DEVICE_TTL_WINDOW_SECONDS if DEVICE_TTL_WINDOW_SECONDS > 0 else 0,
       PATH_TTL_SECONDS if PATH_TTL_SECONDS > 0 else 0,
     )
     prune_after = max(retention_window * 3, 900) if retention_window > 0 else 86400
