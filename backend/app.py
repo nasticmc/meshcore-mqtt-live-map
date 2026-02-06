@@ -347,14 +347,14 @@ def _record_neighbors(point_ids: List[Optional[str]], ts: float) -> None:
 
 
 def _update_path_timestamps(point_ids: List[Optional[str]], ts: float) -> None:
+  """Update last_seen_in_path for all devices in a path."""
   if not point_ids:
     return
   for device_id in point_ids:
-    if not device_id:
-      continue
-    state.last_seen_in_path[device_id] = max(
-      state.last_seen_in_path.get(device_id, 0.0), float(ts)
-    )
+    if device_id:
+      state.last_seen_in_path[device_id] = max(
+        state.last_seen_in_path.get(device_id, 0.0), float(ts)
+      )
 
 
 def _prune_neighbors(now: float) -> None:
@@ -1327,8 +1327,7 @@ async def broadcaster():
 
       if point_ids and used_hashes:
         _record_neighbors(point_ids, route["ts"])
-      if point_ids:
-        _update_path_timestamps(point_ids, route["ts"])
+      _update_path_timestamps(point_ids, route["ts"])
 
       history_updates, history_removed = _record_route_history(route)
 
