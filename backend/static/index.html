@@ -118,6 +118,7 @@
       <button class="map-toggle" id="labels-toggle" type="button">Labels Off</button>
       <button class="map-toggle" id="nodes-toggle" type="button">Hide nodes</button>
       <button class="map-toggle" id="heat-toggle" type="button">Hide heat</button>
+      <button class="map-toggle" id="age-color-toggle" type="button">Color by age</button>
       <button class="map-toggle" id="coverage-toggle" type="button">Coverage</button>
       <button class="map-toggle" id="history-toggle" type="button">History tool</button>
       <button class="map-toggle" id="peers-toggle" type="button">Peers tool</button>
@@ -141,6 +142,12 @@
           <div class="legend-item"><span class="legend-dot legend-los-relay"></span> Relay suggested</div>
         </div>
         <div class="legend-item"><span class="legend-heat"></span> Heat (last 10 min)</div>
+        <div class="legend-age-group" id="legend-age-group">
+          <div class="legend-item">
+            <span class="legend-age-swatch"></span>
+            <span>Age: new → 1 wk → 1 mo+</span>
+          </div>
+        </div>
         <div class="legend-item"><span class="legend-dot legend-online"></span><span id="mqtt-online-label">MQTT online
             (last 5 min)</span></div>
         <div class="legend-item"><span class="legend-dot legend-repeater"></span> Repeater</div>

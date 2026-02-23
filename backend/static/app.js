@@ -404,9 +404,55 @@ function markerStyleForRole(role) {
   return { color: '#4b5563', fillColor: '#d1d5db', fillOpacity: 0.95, radius: nodeMarkerRadius, weight: 2 };
 }
 
+// Colour nodes by how long ago they were last heard from:
+// 0–7 days  → green (#22c55e) → blue (#2b8cff)
+// 7–30 days → blue  (#2b8cff) → red  (#ef4444)
+// 30+ days  → red   (#ef4444)
+function lerpHex(a, b, t) {
+  const ah = parseInt(a.slice(1), 16);
+  const bh = parseInt(b.slice(1), 16);
+  const ar = (ah >> 16) & 0xff, ag = (ah >> 8) & 0xff, ab = ah & 0xff;
+  const br = (bh >> 16) & 0xff, bg = (bh >> 8) & 0xff, bb = bh & 0xff;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl2 = Math.round(ab + (bb - ab) * t);
+  return '#' + [r, g, bl2].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function nodeAgeColor(d) {
+  const AGE_GREEN = '#22c55e';
+  const AGE_BLUE  = '#2b8cff';
+  const AGE_RED   = '#ef4444';
+  const WEEK_S  = 7  * 24 * 3600;
+  const MONTH_S = 30 * 24 * 3600;
+  const lastSeen = getLastSeenTs(d);
+  const ageSeconds = lastSeen ? (Date.now() / 1000 - lastSeen) : MONTH_S;
+  let fill;
+  if (ageSeconds <= WEEK_S) {
+    fill = lerpHex(AGE_GREEN, AGE_BLUE, ageSeconds / WEEK_S);
+  } else if (ageSeconds <= MONTH_S) {
+    fill = lerpHex(AGE_BLUE, AGE_RED, (ageSeconds - WEEK_S) / (MONTH_S - WEEK_S));
+  } else {
+    fill = AGE_RED;
+  }
+  // Darken the fill slightly for the border
+  const border = lerpHex(fill, '#000000', 0.35);
+  return { fillColor: fill, color: border };
+}
+
+let colorByAge = localStorage.getItem('meshmapColorByAge') === 'true';
+
 function markerStyleForDevice(d) {
   const role = resolveRole(d);
   const base = markerStyleForRole(role);
+  if (colorByAge) {
+    const ageStyle = nodeAgeColor(d);
+    const merged = { ...base, fillColor: ageStyle.fillColor, color: ageStyle.color };
+    if (isMqttOnline(d)) {
+      return { ...merged, color: '#22c55e', weight: 3 };
+    }
+    return merged;
+  }
   if (isMqttOnline(d)) {
     return { ...base, color: '#22c55e', weight: 3 };
   }
@@ -4852,6 +4898,23 @@ if (nodesToggle) {
   nodesToggle.addEventListener('click', () => {
     setNodesVisible(!nodesVisible);
     localStorage.setItem('meshmapNodesVisible', nodesVisible ? 'true' : 'false');
+  });
+}
+
+const ageColorToggle = document.getElementById('age-color-toggle');
+if (ageColorToggle) {
+  function applyColorByAge() {
+    ageColorToggle.classList.toggle('active', colorByAge);
+    ageColorToggle.textContent = colorByAge ? 'Age colors: On' : 'Color by age';
+    const ageGroup = document.getElementById('legend-age-group');
+    if (ageGroup) ageGroup.classList.toggle('active', colorByAge);
+    refreshOnlineMarkers();
+  }
+  applyColorByAge();
+  ageColorToggle.addEventListener('click', () => {
+    colorByAge = !colorByAge;
+    localStorage.setItem('meshmapColorByAge', colorByAge ? 'true' : 'false');
+    applyColorByAge();
   });
 }
 updateNodeSizeUi();
