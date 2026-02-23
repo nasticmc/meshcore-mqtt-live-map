@@ -118,6 +118,8 @@ const polylines = new Map(); // device_id -> Leaflet polyline
 const markerLayer = L.layerGroup().addTo(map);
 const trailLayer = L.layerGroup().addTo(map);
 let nodesVisible = true;
+let newNodesFilter = false;
+const NEW_NODES_WINDOW_SEC = 86400;
 const routeLines = new Map(); // route_id -> { line, timeout }
 const deviceMeta = new Map(); // device_id -> { lat, lon, name }
 const historyLines = new Map(); // edge_id -> { line, count }
@@ -739,6 +741,35 @@ function setNodesVisible(visible) {
       map.removeLayer(peerLayer);
     }
   }
+}
+
+function isNewNode(d) {
+  if (!d) return false;
+  const ts = d.first_seen_ts;
+  if (!ts) return false;
+  return (Date.now() / 1000 - ts) <= NEW_NODES_WINDOW_SEC;
+}
+
+function setNewNodesFilter(active) {
+  newNodesFilter = active;
+  const btn = document.getElementById('new-nodes-toggle');
+  if (btn) {
+    btn.classList.toggle('active', active);
+    btn.textContent = active ? 'New nodes: On' : 'New nodes (24h)';
+  }
+  markers.forEach((m, id) => {
+    const d = deviceData.get(id);
+    if (!d) return;
+    if (active && !isNewNode(d)) {
+      if (markerLayer.hasLayer(m)) markerLayer.removeLayer(m);
+      const pl = polylines.get(id);
+      if (pl && trailLayer.hasLayer(pl)) trailLayer.removeLayer(pl);
+    } else if (!active) {
+      if (!markerLayer.hasLayer(m)) markerLayer.addLayer(m);
+      const pl = polylines.get(id);
+      if (pl && !trailLayer.hasLayer(pl)) trailLayer.addLayer(pl);
+    }
+  });
 }
 
 function updateHistoryPanelVisibility() {
@@ -3599,6 +3630,14 @@ function upsertDevice(d, trail) {
     polylines.delete(id);
   }
 
+  // Apply new nodes filter
+  if (newNodesFilter && !isNewNode(d)) {
+    const m = markers.get(id);
+    if (m && markerLayer.hasLayer(m)) markerLayer.removeLayer(m);
+    const pl = polylines.get(id);
+    if (pl && trailLayer.hasLayer(pl)) trailLayer.removeLayer(pl);
+  }
+
   setStats();
   if (propagationActive && propagationOrigins.length) {
     const origin = propagationOrigins.find(item => item.id === id);
@@ -4858,6 +4897,14 @@ updateNodeSizeUi();
 if (nodeSizeInput) {
   nodeSizeInput.addEventListener('input', (ev) => {
     setNodeMarkerRadius(ev.target.value);
+  });
+}
+
+const newNodesToggle = document.getElementById('new-nodes-toggle');
+if (newNodesToggle) {
+  setNewNodesFilter(false);
+  newNodesToggle.addEventListener('click', () => {
+    setNewNodesFilter(!newNodesFilter);
   });
 }
 

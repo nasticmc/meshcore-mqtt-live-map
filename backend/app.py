@@ -174,6 +174,7 @@ from state import (
   device_role_sources,
   device_coords,
   neighbor_edges,
+  first_seen_devices,
 )
 
 # =========================
@@ -382,6 +383,7 @@ def _serialize_state() -> Dict[str, Any]:
     },
     "trails": trails,
     "seen_devices": seen_devices,
+    "first_seen_devices": first_seen_devices,
     "device_names": device_names,
     "device_roles": device_roles,
     "device_role_sources": device_role_sources,
@@ -465,6 +467,9 @@ def _device_payload(device_id: str, state: "DeviceState") -> Dict[str, Any]:
     payload["last_seen_ts"] = last_seen
   else:
     payload["last_seen_ts"] = payload.get("ts")
+  first_seen_ts = first_seen_devices.get(device_id)
+  if first_seen_ts:
+    payload["first_seen_ts"] = first_seen_ts
   mqtt_seen_ts = mqtt_seen.get(device_id)
   if mqtt_seen_ts:
     payload["mqtt_seen_ts"] = mqtt_seen_ts
@@ -507,6 +512,7 @@ def _evict_device(device_id: str) -> bool:
     removed = True
   trails.pop(device_id, None)
   seen_devices.pop(device_id, None)
+  first_seen_devices.pop(device_id, None)
   mqtt_seen.pop(device_id, None)
   last_seen_broadcast.pop(device_id, None)
   state.last_seen_in_path.pop(device_id, None)
@@ -689,6 +695,8 @@ def _load_state() -> None:
   trails.update(data.get("trails") or {})
   seen_devices.clear()
   seen_devices.update(data.get("seen_devices") or {})
+  first_seen_devices.clear()
+  first_seen_devices.update(data.get("first_seen_devices") or {})
   cleaned_trails: Dict[str, list] = {}
   trails_dirty = False
   for device_id, trail in trails.items():
@@ -723,6 +731,7 @@ def _load_state() -> None:
     for device_id in dropped_ids:
       trails.pop(device_id, None)
       seen_devices.pop(device_id, None)
+      first_seen_devices.pop(device_id, None)
       trails_dirty = True
   if trails_dirty:
     state.state_dirty = True
@@ -1422,6 +1431,7 @@ async def broadcaster():
       device_state.lon = coord_override["lon"]
     devices[device_id] = device_state
     seen_devices[device_id] = time.time()
+    first_seen_devices.setdefault(device_id, time.time())
     state.state_dirty = True
     if is_new_device:
       _rebuild_node_hash_map()
