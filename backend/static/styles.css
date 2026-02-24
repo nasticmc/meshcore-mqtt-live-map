@@ -265,6 +265,34 @@
       background: #d1d5db;
     }
 
+    .legend-age-group {
+      display: none;
+    }
+
+    .legend-age-group.active {
+      display: contents;
+    }
+
+    .legend-age-fresh {
+      border-color: #16a34a;
+      background: #22c55e;
+    }
+
+    .legend-age-week {
+      border-color: #2563eb;
+      background: #60a5fa;
+    }
+
+    .legend-age-month {
+      border-color: #d97706;
+      background: #fbbf24;
+    }
+
+    .legend-age-old {
+      border-color: #dc2626;
+      background: #f87171;
+    }
+
     .legend-online {
       border-color: #22c55e;
       background: rgba(34, 197, 94, 0.15);

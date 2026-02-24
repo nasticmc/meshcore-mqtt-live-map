@@ -202,6 +202,7 @@ const losProfile = document.getElementById('los-profile');
 const losProfileSvg = document.getElementById('los-profile-svg');
 const losProfileTooltip = document.getElementById('los-profile-tooltip');
 const losLegendGroup = document.getElementById('legend-los-group');
+const ageLegendGroup = document.getElementById('legend-age-group');
 const losClearButton = document.getElementById('los-clear');
 const losPanel = document.getElementById('los-panel');
 const losHeightAInput = document.getElementById('los-height-a');
@@ -283,6 +284,7 @@ const historyToolVersion = '1';
 localStorage.setItem('meshmapHistoryToolVersion', historyToolVersion);
 let historyVisible = false;
 let historyPanelHidden = false;
+let ageColorMode = false;
 let peersActive = false;
 let peersSelectedId = null;
 let peersData = null;
@@ -404,7 +406,27 @@ function markerStyleForRole(role) {
   return { color: '#4b5563', fillColor: '#d1d5db', fillOpacity: 0.95, radius: nodeMarkerRadius, weight: 2 };
 }
 
+const AGE_THRESHOLDS = {
+  DAY: 86400,
+  WEEK: 7 * 86400,
+  MONTH: 30 * 86400
+};
+
+function markerColorForAge(d) {
+  const ts = getLastSeenTs(d);
+  if (!ts) return { color: '#dc2626', fillColor: '#f87171' };
+  const ageSeconds = Date.now() / 1000 - ts;
+  if (ageSeconds < AGE_THRESHOLDS.DAY) return { color: '#16a34a', fillColor: '#22c55e' };
+  if (ageSeconds < AGE_THRESHOLDS.WEEK) return { color: '#2563eb', fillColor: '#60a5fa' };
+  if (ageSeconds < AGE_THRESHOLDS.MONTH) return { color: '#d97706', fillColor: '#fbbf24' };
+  return { color: '#dc2626', fillColor: '#f87171' };
+}
+
 function markerStyleForDevice(d) {
+  if (ageColorMode) {
+    const ageColors = markerColorForAge(d);
+    return { ...ageColors, fillOpacity: 0.95, radius: nodeMarkerRadius, weight: 2 };
+  }
   const role = resolveRole(d);
   const base = markerStyleForRole(role);
   if (isMqttOnline(d)) {
@@ -811,6 +833,17 @@ function setHopsVisible(visible) {
     });
     hopMarkers.clear();
   }
+}
+
+function setAgeColorMode(active) {
+  ageColorMode = active;
+  const btn = document.getElementById('age-color-toggle');
+  if (btn) {
+    btn.classList.toggle('active', active);
+    btn.textContent = active ? 'Age colours: on' : 'Age colours';
+  }
+  if (ageLegendGroup) ageLegendGroup.classList.toggle('active', active);
+  refreshOnlineMarkers();
 }
 
 function stringHashColor(str) {
@@ -4436,6 +4469,13 @@ const hopsToggle = document.getElementById('hops-toggle');
 if (hopsToggle) {
   hopsToggle.addEventListener('click', () => {
     setHopsVisible(!hopsVisible);
+  });
+}
+
+const ageColorToggle = document.getElementById('age-color-toggle');
+if (ageColorToggle) {
+  ageColorToggle.addEventListener('click', () => {
+    setAgeColorMode(!ageColorMode);
   });
 }
 
