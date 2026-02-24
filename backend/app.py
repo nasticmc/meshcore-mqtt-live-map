@@ -153,6 +153,7 @@ from state import (
   stats,
   result_counts,
   seen_devices,
+  first_seen_devices,
   mqtt_seen,
   last_seen_broadcast,
   topic_counts,
@@ -382,6 +383,7 @@ def _serialize_state() -> Dict[str, Any]:
     },
     "trails": trails,
     "seen_devices": seen_devices,
+    "first_seen_devices": first_seen_devices,
     "device_names": device_names,
     "device_roles": device_roles,
     "device_role_sources": device_role_sources,
@@ -465,6 +467,7 @@ def _device_payload(device_id: str, state: "DeviceState") -> Dict[str, Any]:
     payload["last_seen_ts"] = last_seen
   else:
     payload["last_seen_ts"] = payload.get("ts")
+  payload["first_seen_ts"] = first_seen_devices.get(device_id) or payload.get("last_seen_ts")
   mqtt_seen_ts = mqtt_seen.get(device_id)
   if mqtt_seen_ts:
     payload["mqtt_seen_ts"] = mqtt_seen_ts
@@ -507,6 +510,7 @@ def _evict_device(device_id: str) -> bool:
     removed = True
   trails.pop(device_id, None)
   seen_devices.pop(device_id, None)
+  first_seen_devices.pop(device_id, None)
   mqtt_seen.pop(device_id, None)
   last_seen_broadcast.pop(device_id, None)
   state.last_seen_in_path.pop(device_id, None)
@@ -553,6 +557,8 @@ def _parse_updated_since(value: Optional[str]) -> Optional[float]:
 def _node_api_payload(device_id: str, state: "DeviceState") -> Dict[str, Any]:
   last_seen = seen_devices.get(device_id) or state.ts
   last_seen_iso = _iso_from_ts(last_seen)
+  first_seen = first_seen_devices.get(device_id) or last_seen
+  first_seen_iso = _iso_from_ts(first_seen)
   role_value = state.role or device_roles.get(device_id)
   device_role = _device_role_code(role_value)
   return {
@@ -569,7 +575,8 @@ def _node_api_payload(device_id: str, state: "DeviceState") -> Dict[str, Any]:
     "last_seen_ts": last_seen,
     "last_seen": last_seen_iso,
     "timestamp": int(last_seen) if last_seen else None,
-    "first_seen": last_seen_iso,
+    "first_seen_ts": first_seen,
+    "first_seen": first_seen_iso,
     "battery_voltage": 0,
   }
 
@@ -689,6 +696,12 @@ def _load_state() -> None:
   trails.update(data.get("trails") or {})
   seen_devices.clear()
   seen_devices.update(data.get("seen_devices") or {})
+  first_seen_devices.clear()
+  loaded_first_seen = data.get("first_seen_devices") or {}
+  first_seen_devices.update(loaded_first_seen)
+  # Back-fill from seen_devices for devices with no first_seen record
+  for dev_id, ts in seen_devices.items():
+    first_seen_devices.setdefault(dev_id, ts)
   cleaned_trails: Dict[str, list] = {}
   trails_dirty = False
   for device_id, trail in trails.items():
@@ -723,6 +736,7 @@ def _load_state() -> None:
     for device_id in dropped_ids:
       trails.pop(device_id, None)
       seen_devices.pop(device_id, None)
+      first_seen_devices.pop(device_id, None)
       trails_dirty = True
   if trails_dirty:
     state.state_dirty = True
@@ -847,6 +861,7 @@ def mqtt_on_message(client, userdata, msg: mqtt.MQTTMessage):
   if dev_guess and _topic_marks_online(msg.topic):
     now = time.time()
     seen_devices[dev_guess] = now
+    first_seen_devices.setdefault(dev_guess, now)
     mqtt_seen[dev_guess] = now
     if dev_guess in devices:
       last_sent = last_seen_broadcast.get(dev_guess, 0)
@@ -1212,6 +1227,7 @@ async def broadcaster():
         seen_ts = event.get("last_seen_ts") or time.time()
         mqtt_ts = event.get("mqtt_seen_ts")
         seen_devices[device_id] = seen_ts
+        first_seen_devices.setdefault(device_id, seen_ts)
         if mqtt_ts:
           mqtt_seen[device_id] = mqtt_ts
         payload = {
@@ -1422,6 +1438,7 @@ async def broadcaster():
       device_state.lon = coord_override["lon"]
     devices[device_id] = device_state
     seen_devices[device_id] = time.time()
+    first_seen_devices.setdefault(device_id, seen_devices[device_id])
     state.state_dirty = True
     if is_new_device:
       _rebuild_node_hash_map()

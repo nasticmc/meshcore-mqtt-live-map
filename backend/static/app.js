@@ -413,7 +413,7 @@ const AGE_THRESHOLDS = {
 };
 
 function markerColorForAge(d) {
-  const ts = getLastSeenTs(d);
+  const ts = d.first_seen_ts || d.ts;
   if (!ts) return { color: '#dc2626', fillColor: '#f87171' };
   const ageSeconds = Date.now() / 1000 - ts;
   if (ageSeconds < AGE_THRESHOLDS.DAY) return { color: '#16a34a', fillColor: '#22c55e' };
