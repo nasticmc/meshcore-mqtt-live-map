@@ -31,6 +31,7 @@ stats = {
 }
 result_counts: Dict[str, int] = {}
 seen_devices: Dict[str, float] = {}
+first_seen_devices: Dict[str, float] = {}
 mqtt_seen: Dict[str, float] = {}
 last_seen_broadcast: Dict[str, float] = {}
 topic_counts: Dict[str, int] = {}
