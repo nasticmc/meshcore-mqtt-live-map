@@ -122,6 +122,7 @@
       <button class="map-toggle" id="history-toggle" type="button">History tool</button>
       <button class="map-toggle" id="peers-toggle" type="button">Peers tool</button>
       <button class="map-toggle" id="hops-toggle" type="button">Show hops</button>
+      <button class="map-toggle" id="age-color-toggle" type="button">Age colours</button>
       <button class="map-toggle" id="los-toggle" type="button">LOS tool</button>
       <button class="map-toggle" id="prop-toggle" type="button">Propagation</button>
       <div class="legend">
@@ -141,6 +142,12 @@
           <div class="legend-item"><span class="legend-dot legend-los-relay"></span> Relay suggested</div>
         </div>
         <div class="legend-item"><span class="legend-heat"></span> Heat (last 10 min)</div>
+        <div class="legend-age-group" id="legend-age-group">
+          <div class="legend-item"><span class="legend-dot legend-age-fresh"></span> &lt; 24 h</div>
+          <div class="legend-item"><span class="legend-dot legend-age-week"></span> &lt; 1 week</div>
+          <div class="legend-item"><span class="legend-dot legend-age-month"></span> &lt; 1 month</div>
+          <div class="legend-item"><span class="legend-dot legend-age-old"></span> &gt; 1 month</div>
+        </div>
         <div class="legend-item"><span class="legend-dot legend-online"></span><span id="mqtt-online-label">MQTT online
             (last 5 min)</span></div>
         <div class="legend-item"><span class="legend-dot legend-repeater"></span> Repeater</div>
