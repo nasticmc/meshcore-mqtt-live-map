@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Current version: `1.3.5` (see `VERSIONS.md`).
+Current version: `1.3.6` (see `VERSIONS.md`).
 
 ## Project Structure & Module Organization
 - `backend/app.py` wires FastAPI routes, MQTT lifecycle, and websocket broadcast flow.
@@ -17,7 +17,7 @@ Current version: `1.3.5` (see `VERSIONS.md`).
 - `docker-compose.yaml` runs the service as `meshmap-live`.
 - `data/` stores persisted state (`state.json`), route history (`route_history.jsonl`), role overrides (`device_roles.json`), and optional neighbor overrides (`neighbor_overrides.json`).
 - `.env` holds dev runtime settings; `.env.example` mirrors template defaults.
-- `VERSION.txt` tracks the current version (now `1.3.5`); append changes in `VERSIONS.md`.
+- `VERSION.txt` tracks the current version (now `1.3.6`); append changes in `VERSIONS.md`.
 
 ## Build, Test, and Development Commands
 - `docker compose up -d --build` rebuilds and restarts the backend (preferred workflow).
@@ -52,6 +52,7 @@ Current version: `1.3.5` (see `VERSIONS.md`).
 - `MAP_RADIUS_SHOW=true` draws a debug circle centered on `MAP_START_LAT/LON`.
 - Set `TRAIL_LEN=0` to disable trails entirely; the HUD trail hint is removed when trails are off.
 - Coverage button only appears when `COVERAGE_API_URL` is set.
+- "New nodes" button only appears when `NEW_NODE_FILTER_ENABLED=true` (default); when active it hides all nodes except those first seen within the last 24 hours.
 - `DEVICE_COORDS_FILE` points to optional coordinate overrides (default `/data/device_coords.json`).
 - `NEIGHBOR_OVERRIDES_FILE` can point at a JSON map/list of neighbor pairs to resolve hash collisions.
 - Optional custom HUD link appears when `CUSTOM_LINK_URL` is set.
@@ -107,3 +108,4 @@ Current version: `1.3.5` (see `VERSIONS.md`).
 - Share button copies a URL with `lat`, `lon`, `zoom`, `layer`, `history`, `heat`, `labels`, `nodes`, `legend`, `menu`, `units`, and `history_filter` params.
 - URL params override localStorage on load (`history=on` is the only way to load History open).
 - Node size slider persists in localStorage (`meshmapNodeRadius`) and can be reset by clearing site data.
+- New nodes filter (`NEW_NODE_FILTER_ENABLED`) uses `first_seen_ts` to determine if a node qualifies; nodes without `first_seen_ts` are treated as not new.
