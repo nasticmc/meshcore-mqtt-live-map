@@ -1,6 +1,6 @@
 # Mesh Live Map
 
-Version: `1.3.5` (see [VERSIONS.md](VERSIONS.md))
+Version: `1.3.6` (see [VERSIONS.md](VERSIONS.md))
 
 Live MeshCore traffic map that renders nodes, routes, and activity in real time on a Leaflet map. The backend subscribes to MQTT over WebSockets+TLS or TCP, decodes MeshCore packets with `@michaelhart/meshcore-decoder`, and streams updates to the browser via WebSockets.
 
@@ -42,6 +42,7 @@ Live example sites:
 - Propagation tool supports adjustable **TX antenna gain (dBi)**, and now defaults **Rx AGL** to **1m**
 - Installable PWA (manifest + service worker) for Add to Home Screen
 - Click the logo to hide/show the left HUD panel while tools stay open
+- New nodes filter button shows only nodes first seen in the last 24 hours (configurable via `NEW_NODE_FILTER_ENABLED`)
 
 ## Project Structure
 - `backend/app.py`: FastAPI server wiring, MQTT lifecycle, WS broadcast
@@ -127,6 +128,9 @@ MQTT:
 
 Coverage layer:
 - `COVERAGE_API_URL` (URL to coverage map API; button hidden when blank)
+
+Node filter:
+- `NEW_NODE_FILTER_ENABLED` (`true`/`false`; shows a "New nodes" button that filters to nodes first seen in the last 24h; default `true`, button hidden when `false`)
 
 Device + route tuning:
 - `DEVICE_TTL_HOURS` (advert/device stale window; default `96`)

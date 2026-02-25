@@ -1,7 +1,7 @@
 # Mesh Map Live: Implementation Notes
 
 This document captures the state of the project and the key changes made so far, so a new Codex session can pick up without losing context.
-Current version: `1.3.5` (see `VERSIONS.md`).
+Current version: `1.3.6` (see `VERSIONS.md`).
 
 ## Overview
 This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A FastAPI backend subscribes to MQTT (WSS/TLS or TCP), decodes MeshCore packets using `@michaelhart/meshcore-decoder`, and broadcasts device updates and routes over WebSockets to the frontend. Core logic is split into config/state/decoder/LOS/history modules so changes are localized. The UI includes heatmap, LOS tools, map mode toggles, and a 24‑hour route history layer.
@@ -36,6 +36,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - `curl -s http://localhost:8080/peers/<device_id>` (peer counts for a node; uses route history).
 
 ## Env Notes (Recent Additions)
+- `NEW_NODE_FILTER_ENABLED` enables the "New nodes" HUD button (default `true`); when `false` the button is hidden. When active, only nodes with `first_seen_ts` within the last 24 hours are shown.
 - `CUSTOM_LINK_URL` adds a HUD link button; blank hides it.
 - `MQTT_ONLINE_FORCE_NAMES` forces named nodes to show MQTT online and skips them in peers.
 - `GIT_CHECK_ENABLED`, `GIT_CHECK_FETCH`, `GIT_CHECK_PATH` enable update checks.
@@ -83,6 +84,7 @@ This project renders live MeshCore traffic on a Leaflet + OpenStreetMap map. A F
 - Peers tool skips nodes listed in `MQTT_ONLINE_FORCE_NAMES` (observer listeners).
 - Peers panel legend clarifies line colors (incoming = blue, outgoing = purple).
 - Coverage tool only appears when `COVERAGE_API_URL` is set; it fetches tiles on demand.
+- New nodes filter button ("New nodes") is shown when `NEW_NODE_FILTER_ENABLED=true`; when active it hides all nodes except those first seen in the last 24 hours and highlights them in green.
 - Trail text in the HUD is only shown when `TRAIL_LEN > 0`; `TRAIL_LEN=0` disables trails entirely.
 - Hide Nodes toggle hides markers, trails, heat, routes, and history layers.
 - Heat toggle can hide the heatmap; it defaults on and the button turns green when heat is off.
@@ -198,3 +200,4 @@ If routes aren’t visible:
 - `ROUTE_INFRA_ONLY` direct-route checks now allow rendering when at least one endpoint is infrastructure.
 - Propagation range math now uses a user-set TX antenna gain field; Rx AGL default lowered to 1m (credit: C2D).
 - Device staleness now supports a dual TTL model using both `DEVICE_TTL_HOURS` and `PATH_TTL_SECONDS` together.
+- New nodes filter replaces the old age-colours toggle: button renamed to "New nodes", shows only nodes with `first_seen_ts` within the last 24h (others hidden), configurable via `NEW_NODE_FILTER_ENABLED`.

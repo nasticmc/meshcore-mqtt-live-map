@@ -8,7 +8,7 @@ Thanks for helping improve the MeshCore Live Map. This repo is intentionally lig
 3) Verify: `curl -s http://localhost:8080/snapshot`
 
 ## Versioning
-- Current version: `1.3.5` (see `VERSIONS.md`).
+- Current version: `1.3.6` (see `VERSIONS.md`).
 - Update `VERSION.txt` when adding features.
 - Append a new section to `VERSIONS.md` describing the change set.
 
@@ -32,6 +32,7 @@ Thanks for helping improve the MeshCore Live Map. This repo is intentionally lig
 - Turnstile only activates when `PROD_MODE=true`; if you are testing Turnstile,
   set `PROD_MODE=true` plus the `TURNSTILE_*` env vars.
 - If `COVERAGE_API_URL` is blank, confirm the Coverage button is hidden.
+- If `NEW_NODE_FILTER_ENABLED=false`, confirm the "New nodes" button is hidden; when `true`, confirm it filters the map to nodes first seen within the last 24 hours.
 - Note: coordinates at `0,0` (even as strings) are filtered and won’t render.
 - Radius filter: `MAP_RADIUS_KM=0` disables filtering; `.env.example` uses 241.4 km (150mi).
 - `CUSTOM_LINK_URL` shows an extra HUD link when set; leave blank to hide.
