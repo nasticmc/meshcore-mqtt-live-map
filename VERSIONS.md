@@ -1,7 +1,7 @@
 # Versions
 
 ## v1.3.6 (02-25-2026)
-- Replaced "Age colours" button with a **New nodes** filter button.
+- Added a **New nodes** filter button.
 - When active, only nodes first seen within the last 24 hours (using `first_seen_ts`) are shown on the map; all older nodes are hidden.
 - New nodes are highlighted in green; the legend shows a single "New node (< 24 h)" entry when the filter is active.
 - Added `NEW_NODE_FILTER_ENABLED` env var (default: `true`) to enable or disable the feature; the button is hidden when disabled.
