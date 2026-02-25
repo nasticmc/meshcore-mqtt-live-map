@@ -35,7 +35,8 @@
   data-los-sample-step-meters="{{LOS_SAMPLE_STEP_METERS}}" data-los-peaks-max="{{LOS_PEAKS_MAX}}"
   data-mqtt-online-seconds="{{MQTT_ONLINE_SECONDS}}" data-distance-units="{{DISTANCE_UNITS}}"
   data-node-radius="{{NODE_MARKER_RADIUS}}" data-history-link-scale="{{HISTORY_LINK_SCALE}}"
-  data-coverage-api-url="{{COVERAGE_API_URL}}" data-custom-link-url="{{CUSTOM_LINK_URL}}"
+  data-coverage-api-url="{{COVERAGE_API_URL}}" data-new-node-filter-enabled="{{NEW_NODE_FILTER_ENABLED}}"
+  data-custom-link-url="{{CUSTOM_LINK_URL}}"
   data-update-available="{{UPDATE_AVAILABLE}}" data-update-local="{{UPDATE_LOCAL}}"
   data-update-remote="{{UPDATE_REMOTE}}" data-turnstile-enabled="{{TURNSTILE_ENABLED}}">
   <script>
@@ -122,7 +123,7 @@
       <button class="map-toggle" id="history-toggle" type="button">History tool</button>
       <button class="map-toggle" id="peers-toggle" type="button">Peers tool</button>
       <button class="map-toggle" id="hops-toggle" type="button">Show hops</button>
-      <button class="map-toggle" id="age-color-toggle" type="button">Age colours</button>
+      <button class="map-toggle" id="age-color-toggle" type="button">New nodes</button>
       <button class="map-toggle" id="los-toggle" type="button">LOS tool</button>
       <button class="map-toggle" id="prop-toggle" type="button">Propagation</button>
       <div class="legend">
@@ -143,10 +144,7 @@
         </div>
         <div class="legend-item"><span class="legend-heat"></span> Heat (last 10 min)</div>
         <div class="legend-age-group" id="legend-age-group">
-          <div class="legend-item"><span class="legend-dot legend-age-fresh"></span> &lt; 24 h</div>
-          <div class="legend-item"><span class="legend-dot legend-age-week"></span> &lt; 1 week</div>
-          <div class="legend-item"><span class="legend-dot legend-age-month"></span> &lt; 1 month</div>
-          <div class="legend-item"><span class="legend-dot legend-age-old"></span> &gt; 1 month</div>
+          <div class="legend-item"><span class="legend-dot legend-age-fresh"></span> New node (&lt; 24 h)</div>
         </div>
         <div class="legend-item"><span class="legend-dot legend-online"></span><span id="mqtt-online-label">MQTT online
             (last 5 min)</span></div>

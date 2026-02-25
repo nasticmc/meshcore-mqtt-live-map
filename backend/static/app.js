@@ -284,7 +284,8 @@ const historyToolVersion = '1';
 localStorage.setItem('meshmapHistoryToolVersion', historyToolVersion);
 let historyVisible = false;
 let historyPanelHidden = false;
-let ageColorMode = false;
+const newNodeFilterEnabled = config.newNodeFilterEnabled === 'true';
+let newNodeMode = false;
 let peersActive = false;
 let peersSelectedId = null;
 let peersData = null;
@@ -412,20 +413,15 @@ const AGE_THRESHOLDS = {
   MONTH: 30 * 86400
 };
 
-function markerColorForAge(d) {
-  const ts = d.first_seen_ts || d.ts;
-  if (!ts) return { color: '#dc2626', fillColor: '#f87171' };
-  const ageSeconds = Date.now() / 1000 - ts;
-  if (ageSeconds < AGE_THRESHOLDS.DAY) return { color: '#16a34a', fillColor: '#22c55e' };
-  if (ageSeconds < AGE_THRESHOLDS.WEEK) return { color: '#2563eb', fillColor: '#60a5fa' };
-  if (ageSeconds < AGE_THRESHOLDS.MONTH) return { color: '#d97706', fillColor: '#fbbf24' };
-  return { color: '#dc2626', fillColor: '#f87171' };
+function isNewNode(d) {
+  const ts = d.first_seen_ts;
+  if (!ts) return false;
+  return (Date.now() / 1000 - ts) < AGE_THRESHOLDS.DAY;
 }
 
 function markerStyleForDevice(d) {
-  if (ageColorMode) {
-    const ageColors = markerColorForAge(d);
-    return { ...ageColors, fillOpacity: 0.95, radius: nodeMarkerRadius, weight: 2 };
+  if (newNodeMode) {
+    return { color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.95, radius: nodeMarkerRadius, weight: 2 };
   }
   const role = resolveRole(d);
   const base = markerStyleForRole(role);
@@ -835,12 +831,12 @@ function setHopsVisible(visible) {
   }
 }
 
-function setAgeColorMode(active) {
-  ageColorMode = active;
+function setNewNodeMode(active) {
+  newNodeMode = active;
   const btn = document.getElementById('age-color-toggle');
   if (btn) {
     btn.classList.toggle('active', active);
-    btn.textContent = active ? 'Age colours: on' : 'Age colours';
+    btn.textContent = active ? 'New nodes: on' : 'New nodes';
   }
   if (ageLegendGroup) ageLegendGroup.classList.toggle('active', active);
   refreshOnlineMarkers();
@@ -3503,7 +3499,8 @@ function upsertDevice(d, trail) {
 
   // marker
   if (!markers.has(id)) {
-    const m = L.circleMarker(latlng, style).addTo(markerLayer);
+    const m = L.circleMarker(latlng, style);
+    if (!newNodeMode || isNewNode(d)) m.addTo(markerLayer);
     m.bindPopup(makePopup(d), {
       maxWidth: 260,
       maxHeight: 320,
@@ -3696,6 +3693,15 @@ function refreshOnlineMarkers() {
   markers.forEach((m, id) => {
     const d = deviceData.get(id);
     if (!d) return;
+    if (newNodeMode) {
+      if (isNewNode(d)) {
+        if (!markerLayer.hasLayer(m)) markerLayer.addLayer(m);
+      } else {
+        if (markerLayer.hasLayer(m)) markerLayer.removeLayer(m);
+      }
+    } else {
+      if (!markerLayer.hasLayer(m)) markerLayer.addLayer(m);
+    }
     const style = markerStyleForDevice(d);
     if (m.setStyle) m.setStyle(style);
     if (m.getPopup()) m.setPopupContent(makePopup(d));
@@ -4473,9 +4479,12 @@ if (hopsToggle) {
 }
 
 const ageColorToggle = document.getElementById('age-color-toggle');
-if (ageColorToggle) {
+if (ageColorToggle && !newNodeFilterEnabled) {
+  ageColorToggle.setAttribute('hidden', 'hidden');
+}
+if (ageColorToggle && newNodeFilterEnabled) {
   ageColorToggle.addEventListener('click', () => {
-    setAgeColorMode(!ageColorMode);
+    setNewNodeMode(!newNodeMode);
   });
 }
 

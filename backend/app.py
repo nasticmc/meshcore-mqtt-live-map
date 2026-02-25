@@ -145,6 +145,7 @@ from config import (
   ELEVATION_CACHE_TTL,
   LOS_PEAKS_MAX,
   COVERAGE_API_URL,
+  NEW_NODE_FILTER_ENABLED,
   APP_DIR,
   NODE_SCRIPT_PATH,
 )
@@ -1835,6 +1836,8 @@ def root(request: Request):
       MQTT_ONLINE_SECONDS,
     "COVERAGE_API_URL":
       COVERAGE_API_URL,
+    "NEW_NODE_FILTER_ENABLED":
+      str(NEW_NODE_FILTER_ENABLED).lower(),
     "UPDATE_AVAILABLE":
       str(bool(git_update_info.get("available"))).lower(),
     "UPDATE_LOCAL":
@@ -2218,6 +2221,7 @@ def map_page(request: Request):
     "LOS_PEAKS_MAX": LOS_PEAKS_MAX,
     "MQTT_ONLINE_SECONDS": MQTT_ONLINE_SECONDS,
     "COVERAGE_API_URL": COVERAGE_API_URL,
+    "NEW_NODE_FILTER_ENABLED": str(NEW_NODE_FILTER_ENABLED).lower(),
     "UPDATE_AVAILABLE": str(bool(git_update_info.get("available"))).lower(),
     "UPDATE_LOCAL": git_update_info.get("local_short") or "",
     "UPDATE_REMOTE": git_update_info.get("remote_short") or "",
